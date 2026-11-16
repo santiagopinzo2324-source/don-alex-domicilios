@@ -9,8 +9,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 
-const CORREO_ADMIN = "alex@admin.donalex.invalid";
-
 export const Route = createFileRoute("/administracion")({
   ssr: false,
   component: AccesoAdministracion,
@@ -28,13 +26,21 @@ function AccesoAdministracion() {
       return;
     }
     setCargando(true);
-    const { error } = await supabase.auth.signInWithPassword({
-      email: CORREO_ADMIN,
-      password: contrasena,
+    const { data: acceso, error } = await supabase.functions.invoke("admin-login", {
+      body: { username: usuario.trim(), password: contrasena },
     });
-    if (error) {
+    if (error || !acceso?.access_token || !acceso?.refresh_token) {
       setCargando(false);
-      toast.error("No fue posible ingresar. Verifica tus datos.");
+      toast.error(acceso?.error || "No fue posible ingresar. Verifica tus datos.");
+      return;
+    }
+    const { error: sessionError } = await supabase.auth.setSession({
+      access_token: acceso.access_token,
+      refresh_token: acceso.refresh_token,
+    });
+    if (sessionError) {
+      setCargando(false);
+      toast.error("No fue posible iniciar la sesión administrativa.");
       return;
     }
     const { data: auth } = await supabase.auth.getUser();
