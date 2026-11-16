@@ -17,7 +17,11 @@ export const Route = createFileRoute("/_authenticated/domiciliario")({
   component: PortalDomiciliario,
 });
 
-function enlaceMapa(direccion: string) {\n  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(direccion)}`;\n}\n\nconst ESTADOS: Record<string, string> = {
+function enlaceMapa(direccion: string) {
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(direccion)}`;
+}
+
+const ESTADOS: Record<string, string> = {
   asignado: "Pedido asignado",
   hacia_recogida: "Yendo al punto de recogida",
   recogido: "Pedido recogido",
