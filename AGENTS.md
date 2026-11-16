@@ -28,3 +28,11 @@ use the editor.
   own key and store it in Secrets.
 - **Secrets.** Lovable manages them. Do not put secret values in the repo.
 <!-- LOVABLE:END -->
+
+## Project rules
+
+- Delivery pricing lives only in `src/lib/tarifas.ts` (`calcularTarifa`, `zonaDePunto`) with tests in `src/lib/__tests__/tarifas.test.ts`; every channel (web, WhatsApp, admin) must call it so prices never diverge.
+- Unknown zone returns `estado: "revision"` instead of a price — never add a fallback amount.
+- Public company data (name, WhatsApp number, hours) is read from `src/lib/empresa.ts` until it moves to admin-editable settings.
+- Brand colors are semantic tokens (`brand-*`, `on-brand*`, `whatsapp`) in `src/styles.css`; components use those, never raw hex.
+- UI copy is Spanish (Colombia); identifiers in domain code are Spanish too.
