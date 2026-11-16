@@ -389,7 +389,7 @@ drop policy if exists pedido_items_participants on public.pedido_items;
 create policy pedido_items_participants on public.pedido_items for select to authenticated using (
   exists(select 1 from public.pedidos p where p.id = pedido_id and
     (p.cliente_id = auth.uid() or p.domiciliario_id = auth.uid() or public.es_admin()
-     or (p.establecimiento_id is not null and public.es_propietario_establecimiento(p.establecimiento_id)))
+     or (p.establecimiento_id is not null and public.es_propietario_establecimiento(p.establecimiento_id))))
 );
 drop policy if exists pedido_items_customer_insert on public.pedido_items;
 create policy pedido_items_customer_insert on public.pedido_items for insert to authenticated with check (
@@ -400,13 +400,13 @@ drop policy if exists pedido_eventos_participants on public.pedido_eventos;
 create policy pedido_eventos_participants on public.pedido_eventos for select to authenticated using (
   exists(select 1 from public.pedidos p where p.id = pedido_id and
     (p.cliente_id = auth.uid() or p.domiciliario_id = auth.uid() or public.es_admin()
-     or (p.establecimiento_id is not null and public.es_propietario_establecimiento(p.establecimiento_id)))
+     or (p.establecimiento_id is not null and public.es_propietario_establecimiento(p.establecimiento_id))))
 );
 drop policy if exists pedido_eventos_insert_participants on public.pedido_eventos;
 create policy pedido_eventos_insert_participants on public.pedido_eventos for insert to authenticated with check (
   actor_id = auth.uid() and exists(select 1 from public.pedidos p where p.id = pedido_id and
     (p.cliente_id = auth.uid() or p.domiciliario_id = auth.uid() or public.es_admin()
-     or (p.establecimiento_id is not null and public.es_propietario_establecimiento(p.establecimiento_id)))
+     or (p.establecimiento_id is not null and public.es_propietario_establecimiento(p.establecimiento_id))))
 );
 
 drop policy if exists notificaciones_owner on public.notificaciones;
