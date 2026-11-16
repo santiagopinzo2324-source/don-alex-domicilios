@@ -320,6 +320,11 @@ function Inicio() {
               <p className="mt-4 text-muted-foreground">
                 Clientes, domiciliarios, negocios, administración y WhatsApp conectados a la misma información.
               </p>
+              <div className="mt-6 flex flex-wrap gap-3">
+                <a href="/domiciliario" className="inline-flex items-center justify-center rounded-xl bg-primary px-5 py-3 text-sm font-bold text-primary-foreground shadow-soft hover:opacity-90">Entrar al portal de domiciliarios</a>
+                <a href="/auth?modo=registro" className="inline-flex items-center justify-center rounded-xl border border-border bg-card px-5 py-3 text-sm font-bold text-foreground hover:border-brand-lilac">Crear una cuenta</a>
+              </div>
+              <p className="mt-3 text-xs text-muted-foreground">El acceso operativo se habilita únicamente después de la revisión y aprobación administrativa, y de verificar los requisitos legales y documentos aplicables.</p>
             </div>
             <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-5">
               {MODULOS.map(({ icono: Icono, titulo, texto, etapa }) => (
