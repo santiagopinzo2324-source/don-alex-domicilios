@@ -53,6 +53,9 @@
   --color-on-brand-muted: var(--on-brand-muted);
   --color-whatsapp: var(--whatsapp);
   --color-whatsapp-foreground: var(--whatsapp-foreground);
+  --color-google: var(--google);
+  --color-google-border: var(--google-border);
+  --color-google-foreground: var(--google-foreground);
 
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
@@ -91,6 +94,10 @@
   --on-brand-muted: oklch(0.88 0.05 306);
   --whatsapp: oklch(0.62 0.17 149.7);
   --whatsapp-foreground: oklch(1 0 0);
+  /* Botón oficial de Google (colores exigidos por la marca Google) */
+  --google: #ffffff;
+  --google-border: #747775;
+  --google-foreground: #1f1f1f;
 
   --background: oklch(1 0 0);
   --foreground: oklch(0.22 0.07 298);

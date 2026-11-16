@@ -4,9 +4,9 @@ export const EMPRESA = {
   nombreCorto: "Don Alex",
   ciudad: "Pitalito, Huila",
   pais: "Colombia",
-  // PENDIENTE: número oficial de WhatsApp Business (formato 57XXXXXXXXXX). Valor provisional.
-  whatsapp: "573000000000",
-  horario: "Todos los días · 7:00 a. m. – 10:00 p. m.",
+  whatsapp: "573118199006",
+  whatsappVisible: "311 819 9006",
+  horario: "Todos los días · 7:00 a. m. – 11:00 p. m.",
 } as const;
 
 export function enlaceWhatsApp(mensaje?: string): string {

@@ -19,6 +19,7 @@ const buttonVariants = cva(
         hero: "bg-gradient-vivid text-on-brand shadow-brand hover:-translate-y-0.5 hover:brightness-110",
         whatsapp:
           "bg-whatsapp text-whatsapp-foreground shadow-soft hover:-translate-y-0.5 hover:brightness-105",
+        google: "border border-google-border bg-google text-google-foreground hover:brightness-95",
         onBrand: "bg-on-brand text-brand-deep shadow-lift hover:-translate-y-0.5 hover:bg-brand-lavender",
         onBrandOutline:
           "border border-on-brand/40 bg-on-brand/10 text-on-brand backdrop-blur hover:bg-on-brand/20",
