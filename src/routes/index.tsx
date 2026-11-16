@@ -199,6 +199,37 @@ function Inicio() {
           </div>
         </section>
 
+        {/* Cobertura y horarios especiales */}
+        <section id="cobertura" className="scroll-mt-20 py-14">
+          <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
+            <div className="rounded-3xl border border-brand-lilac/50 bg-card p-6 shadow-soft sm:p-8">
+              <div className="flex items-start gap-3">
+                <MapPin className="mt-1 size-6 shrink-0 text-primary" />
+                <div>
+                  <p className="text-sm font-bold uppercase tracking-[0.16em] text-brand-vivid">Cobertura y horarios</p>
+                  <h2 className="mt-2 font-display text-2xl font-bold text-foreground">Antes de confirmar tu domicilio</h2>
+                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                    Para prestarte un servicio seguro y organizado, tenemos estas condiciones de cobertura:
+                  </p>
+                </div>
+              </div>
+              <ul className="mt-6 grid gap-3 sm:grid-cols-2">
+                <li className="rounded-2xl bg-brand-mist p-4">
+                  <p className="font-bold text-foreground">Barrio Popular y barrio Porvenir</p>
+                  <p className="mt-1 text-sm text-muted-foreground">Por el momento no contamos con cobertura de domicilios en estos sectores.</p>
+                </li>
+                <li className="rounded-2xl bg-brand-mist p-4">
+                  <p className="font-bold text-foreground">Villa del Prado</p>
+                  <p className="mt-1 text-sm text-muted-foreground">Recibimos pedidos hasta las 5:30 p. m. La disponibilidad debe confirmarse antes de aceptar el pedido.</p>
+                </li>
+              </ul>
+              <p className="mt-4 text-sm text-muted-foreground">
+                Otros sectores pueden tener horarios o condiciones especiales. Te informaremos la disponibilidad antes de confirmar; nunca enviaremos un pedido sin avisarte previamente.
+              </p>
+            </div>
+          </div>
+        </section>
+
         {/* Categorías */}
         <section id="categorias" className="scroll-mt-20 py-20 md:py-28">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
