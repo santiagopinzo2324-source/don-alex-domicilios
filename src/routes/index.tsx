@@ -87,7 +87,7 @@ function Inicio() {
               </p>
               <div className="mt-9 flex flex-col gap-3 sm:flex-row">
                 <Button asChild variant="onBrand" size="xl">
-                  <a href="https://wa.me/573118199006?text=Hola%20Don%20Alex%2C%20quiero%20pedir%20un%20domicilio" target="_blank" rel="noopener noreferrer">
+                  <a href="https://wa.me/573118199006?text=Hola%20Don%20Alex%2C%20quiero%20pedir%20un%20domicilio" rel="noopener noreferrer">
                     <MessageCircle /> Pedir por WhatsApp
                   </a>
                 </Button>
@@ -375,7 +375,7 @@ function TarjetaAliado({
         <h3 className="mt-5 text-2xl font-bold">{titulo}</h3>
         <p className="mt-3 max-w-md text-on-brand-muted">{texto}</p>
         <Button asChild variant="onBrand" size="lg" className="mt-7">
-          <a href={`https://wa.me/573118199006?text=${encodeURIComponent(mensaje)}`} target="_blank" rel="noopener noreferrer">
+          <a href={`https://wa.me/573118199006?text=${encodeURIComponent(mensaje)}`} rel="noopener noreferrer">
             {cta} <ArrowRight />
           </a>
         </Button>
