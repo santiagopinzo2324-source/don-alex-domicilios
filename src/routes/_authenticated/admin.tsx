@@ -138,7 +138,7 @@ function Admin() {
       const { data: sessionData } = await supabase.auth.getSession();
       const session = sessionData.session;
       if (!session) throw new Error("Tu sesión terminó. Ingresa nuevamente.");
-      const projectUrl = import.meta.env.VITE_SUPABASE_URL;
+      const projectUrl = "https://rnamhjkwbygmzwyjredd.supabase.co";
       const publishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
       const response = await fetch(projectUrl.replace(/\/+$/, "") + "/functions/v1/admin-login", {
         method: "POST",
