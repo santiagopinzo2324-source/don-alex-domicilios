@@ -139,7 +139,7 @@ function Admin() {
       const session = sessionData.session;
       if (!session) throw new Error("Tu sesión terminó. Ingresa nuevamente.");
       const projectUrl = "https://rnamhjkwbygmzwyjredd.supabase.co";
-      const publishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      const publishableKey = "sb_publishable_JUWjIGGskjjpZYnwsN4wmA_epAOd6bW";
       const response = await fetch(projectUrl.replace(/\/+$/, "") + "/functions/v1/admin-login", {
         method: "POST",
         headers: { "Content-Type": "application/json", apikey: publishableKey, Authorization: "Bearer " + session.access_token },
