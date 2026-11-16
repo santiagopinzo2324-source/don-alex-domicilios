@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { MessageCircle, UserRound } from "lucide-react";
+import { Bike, MessageCircle, UserRound } from "lucide-react";
 
 import { Logo } from "@/components/marca/Logo";
 import { Button } from "@/components/ui/button";
@@ -39,6 +39,12 @@ export function Encabezado() {
           >
             Marca
           </Link>
+          <Link
+            to="/domiciliario"
+            className="text-sm font-bold text-primary transition-colors hover:underline"
+          >
+            Domiciliarios
+          </Link>
         </nav>
         <div className="flex items-center gap-2">
           <span className="min-w-[5.5rem]">
@@ -53,8 +59,8 @@ export function Encabezado() {
                 </Button>
               ))}
           </span>
-          <Button asChild variant="ghost" size="sm" className="hidden h-10 px-3 sm:inline-flex">
-            <a href="/domiciliario">Portal domiciliarios</a>
+          <Button asChild variant="outline" size="sm" className="h-10 px-2 sm:px-3">
+            <Link to="/domiciliario"><Bike className="size-4 sm:mr-1" /><span>Domiciliarios</span></Link>
           </Button>
           <Button asChild variant="hero" size="sm" className="hidden h-10 px-4 sm:inline-flex">
             <a href={enlaceWhatsApp("Hola Don Alex, quiero pedir un domicilio")} target="_blank" rel="noreferrer">
