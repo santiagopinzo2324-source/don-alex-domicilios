@@ -9,7 +9,12 @@ export const EMPRESA = {
   horario: "Todos los días · 7:00 a. m. – 11:00 p. m.",
 } as const;
 
+/**
+ * Abre WhatsApp Web con el número de Don Alex y un mensaje opcional.
+ * Se usa el enlace web directo para evitar la redirección problemática
+ * que algunos navegadores muestran al abrir api.whatsapp.com.
+ */
 export function enlaceWhatsApp(mensaje?: string): string {
-  const base = `https://wa.me/${EMPRESA.whatsapp}`;
-  return mensaje ? `${base}?text=${encodeURIComponent(mensaje)}` : base;
+  const base = `https://web.whatsapp.com/send?phone=${EMPRESA.whatsapp}`;
+  return mensaje ? `${base}&text=${encodeURIComponent(mensaje)}` : base;
 }
