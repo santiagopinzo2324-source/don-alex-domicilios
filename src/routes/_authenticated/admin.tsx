@@ -81,6 +81,10 @@ function Admin() {
   const resumen = useQuery({ queryKey: ["admin-resumen"], queryFn: cargarResumen, refetchInterval: 30000 });
   const solicitudes = useQuery({ queryKey: ["admin-solicitudes-domiciliarios"], queryFn: cargarSolicitudes, refetchInterval: 30000 });
   const reglas = useQuery({ queryKey: ["admin-reglas-cobertura"], queryFn: cargarReglasCobertura });
+  const [claveActual, setClaveActual] = useState("");
+  const [claveNueva, setClaveNueva] = useState("");
+  const [confirmarClave, setConfirmarClave] = useState("");
+  const [cambiandoClave, setCambiandoClave] = useState(false);
   const [nuevoNombre, setNuevoNombre] = useState("");
   const [nuevoTipo, setNuevoTipo] = useState("bloqueada");
   const [nuevoLimite, setNuevoLimite] = useState("17:30");
@@ -126,6 +130,29 @@ function Admin() {
     onError: (error: Error) => toast.error(error.message),
   });
 
+  const cambiarContrasena = async () => {
+    if (claveNueva.length < 10) { toast.error("La nueva contraseña debe tener al menos 10 caracteres."); return; }
+    if (claveNueva !== confirmarClave) { toast.error("Las contraseñas nuevas no coinciden."); return; }
+    setCambiandoClave(true);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const session = sessionData.session;
+      if (!session) throw new Error("Tu sesión terminó. Ingresa nuevamente.");
+      const projectUrl = import.meta.env.VITE_SUPABASE_URL;
+      const publishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      const response = await fetch(projectUrl.replace(/\\/+$/, "") + "/functions/v1/admin-login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", apikey: publishableKey, Authorization: "Bearer " + session.access_token },
+        body: JSON.stringify({ action: "change_password", current_password: claveActual, new_password: claveNueva }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || "No se pudo cambiar la contraseña.");
+      setClaveActual(""); setClaveNueva(""); setConfirmarClave("");
+      toast.success("Contraseña actualizada. Usa la nueva la próxima vez que ingreses.");
+    } catch (error) { toast.error(error instanceof Error ? error.message : "No se pudo cambiar la contraseña."); }
+    finally { setCambiandoClave(false); }
+  };
+
   const tarjetas = [
     { nombre: "Pedidos de hoy", valor: resumen.data?.pedidos, icono: ClipboardList },
     { nombre: "Pendientes", valor: resumen.data?.pendientes, icono: Clock3 },
@@ -150,6 +177,17 @@ function Admin() {
             <RefreshCw className="size-4" /> Actualizar
           </button>
         </div>
+
+        <section className="mt-6 rounded-2xl border border-border bg-card p-6 shadow-soft">
+          <h2 className="text-lg font-bold text-foreground">Seguridad de la cuenta</h2>
+          <p className="mt-1 text-sm text-muted-foreground">Cambia tu contraseña de administración. Usa una clave de al menos 10 caracteres.</p>
+          <div className="mt-4 grid gap-3 sm:grid-cols-3">
+            <input type="password" autoComplete="current-password" value={claveActual} onChange={(e) => setClaveActual(e.target.value)} placeholder="Contraseña actual" className="rounded-xl border border-border bg-background px-3 py-2 text-sm" />
+            <input type="password" autoComplete="new-password" value={claveNueva} onChange={(e) => setClaveNueva(e.target.value)} placeholder="Nueva contraseña (mín. 10)" className="rounded-xl border border-border bg-background px-3 py-2 text-sm" />
+            <input type="password" autoComplete="new-password" value={confirmarClave} onChange={(e) => setConfirmarClave(e.target.value)} placeholder="Repite la nueva contraseña" className="rounded-xl border border-border bg-background px-3 py-2 text-sm" />
+          </div>
+          <button type="button" disabled={cambiandoClave || !claveActual || !claveNueva || !confirmarClave} onClick={cambiarContrasena} className="mt-3 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50">{cambiandoClave ? "Actualizando..." : "Cambiar contraseña"}</button>
+        </section>
 
         {resumen.isError && <div role="alert" className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">No fue posible consultar el resumen. Verifica que la migración de base de datos esté aplicada y que tu usuario tenga rol de administrador.</div>}
 
