@@ -38,7 +38,7 @@ function PortalDomiciliario() {
       const { data: auth } = await supabase.auth.getUser();
       if (!auth.user) throw new Error("Inicia sesión.");
       const [perfil, disponibles, asignados, ganancias] = await Promise.all([
-        supabase.from("domiciliarios").select("estado, disponible").eq("user_id", auth.user.id).maybeSingle(),
+        supabase.from("domiciliarios").select("estado, disponible, numero").eq("user_id", auth.user.id).maybeSingle(),
         supabase.from("pedidos").select("id, numero, cliente_nombre, cliente_telefono, recogida_direccion, entrega_direccion, entrega_barrio, valor_domicilio, estado, created_at").is("domiciliario_id", null).in("estado", ["listo", "confirmado"]).order("created_at", { ascending: true }).limit(20),
         supabase.from("pedidos").select("id, numero, cliente_nombre, cliente_telefono, recogida_direccion, entrega_direccion, entrega_barrio, valor_domicilio, estado").eq("domiciliario_id", auth.user.id).in("estado", ["asignado", "hacia_recogida", "recogido", "hacia_entrega"]).order("asignado_at", { ascending: false }),
         supabase.from("pedidos").select("pago_domiciliario, pago_domiciliario_liquidado").eq("domiciliario_id", auth.user.id).in("estado", ["entregado", "finalizado"]),
@@ -74,7 +74,8 @@ function PortalDomiciliario() {
       <Encabezado />
       <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <div><p className="text-sm font-semibold text-brand-vivid">Zona de trabajo</p><h1 className="mt-1 font-display text-3xl font-bold text-foreground">Portal del domiciliario</h1><p className="mt-2 text-sm text-muted-foreground">Tus pedidos, entregas y ganancias en un solo lugar.</p></div>
+          <div><p className="text-sm font-semibold text-brand-vivid">Zona de trabajo</p><h1 className="mt-1 font-display text-3xl font-bold text-foreground">Portal del domiciliario</h1><p className="mt-2 text-sm text-muted-foreground">Tus pedidos, entregas y ganancias en un solo lugar.</p>
+            {d?.perfil?.numero != null && <p className="mt-2 inline-flex rounded-full bg-brand-lavender px-3 py-1 text-sm font-bold text-primary">Tu código: DOM-{String(d.perfil.numero).padStart(3, "0")}</p>}</div>
           {activo && <Button variant={d?.perfil?.disponible ? "outline" : "hero"} disabled={actualizar.isPending} onClick={() => actualizar.mutate({ fn: "domiciliario_disponibilidad", args: { _disponible: !d?.perfil?.disponible } })}><Power className="mr-2 size-4" />{d?.perfil?.disponible ? "Pausar disponibilidad" : "Estoy disponible"}</Button>}
         </div>
         {consulta.isLoading && <p className="mt-8 text-sm text-muted-foreground">Cargando tu información…</p>}
