@@ -690,6 +690,42 @@ export type Database = {
         }
         Relationships: []
       }
+      reglas_cobertura: {
+        Row: {
+          activa: boolean
+          created_at: string
+          hora_limite: string | null
+          id: string
+          mensaje_cliente: string
+          nombre: string
+          poligono: Json
+          servicio_disponible: boolean
+          updated_at: string
+        }
+        Insert: {
+          activa?: boolean
+          created_at?: string
+          hora_limite?: string | null
+          id?: string
+          mensaje_cliente: string
+          nombre: string
+          poligono?: Json
+          servicio_disponible?: boolean
+          updated_at?: string
+        }
+        Update: {
+          activa?: boolean
+          created_at?: string
+          hora_limite?: string | null
+          id?: string
+          mensaje_cliente?: string
+          nombre?: string
+          poligono?: Json
+          servicio_disponible?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
       zonas: {
         Row: {
           activa: boolean

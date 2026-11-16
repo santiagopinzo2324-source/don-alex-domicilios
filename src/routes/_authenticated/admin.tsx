@@ -1,6 +1,7 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Activity, Bike, ClipboardList, Clock3, DollarSign, PackageCheck, RefreshCw, Store, Users, CheckCircle2, XCircle } from "lucide-react";
+import { useState } from "react";
+import { Activity, Bike, ClipboardList, Clock3, DollarSign, PackageCheck, RefreshCw, Store, Users, CheckCircle2, XCircle, MapPin, Plus, Save, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Encabezado } from "@/components/sitio/Encabezado";
@@ -68,10 +69,23 @@ async function cargarSolicitudes() {
   }));
 }
 
+type ReglaCobertura = { id: string; nombre: string; servicio_disponible: boolean; hora_limite: string | null; mensaje_cliente: string; activa: boolean; poligono: unknown };
+async function cargarReglasCobertura() {
+  const { data, error } = await supabase.from("reglas_cobertura").select("*").order("nombre");
+  if (error) throw error;
+  return data as ReglaCobertura[];
+}
+
 function Admin() {
   const qc = useQueryClient();
   const resumen = useQuery({ queryKey: ["admin-resumen"], queryFn: cargarResumen, refetchInterval: 30000 });
   const solicitudes = useQuery({ queryKey: ["admin-solicitudes-domiciliarios"], queryFn: cargarSolicitudes, refetchInterval: 30000 });
+  const reglas = useQuery({ queryKey: ["admin-reglas-cobertura"], queryFn: cargarReglasCobertura });
+  const [nuevoNombre, setNuevoNombre] = useState("");
+  const [nuevoTipo, setNuevoTipo] = useState("bloqueada");
+  const [nuevoLimite, setNuevoLimite] = useState("17:30");
+  const [nuevoMensaje, setNuevoMensaje] = useState("Por el momento no contamos con cobertura de domicilios en este sector.");
+  const [ediciones, setEdiciones] = useState<Record<string, Partial<ReglaCobertura>>>({});
   const revisar = useMutation({
     mutationFn: async ({ userId, aprobar }: { userId: string; aprobar: boolean }) => {
       const { error } = await supabase.rpc("admin_revisar_domiciliario", { _user_id: userId, _aprobar: aprobar });
@@ -83,6 +97,33 @@ function Admin() {
       qc.invalidateQueries({ queryKey: ["admin-resumen"] });
     },
     onError: (error: Error) => toast.error(error.message || "No se pudo revisar la solicitud."),
+  });
+
+  const guardarRegla = useMutation({
+    mutationFn: async (regla: ReglaCobertura) => {
+      const { error } = await supabase.from("reglas_cobertura").update(ediciones[regla.id] ?? {}).eq("id", regla.id);
+      if (error) throw error;
+    },
+    onSuccess: () => { toast.success("Regla guardada."); qc.invalidateQueries({ queryKey: ["admin-reglas-cobertura"] }); },
+    onError: (error: Error) => toast.error(error.message),
+  });
+  const crearRegla = useMutation({
+    mutationFn: async () => {
+      if (!nuevoNombre.trim()) throw new Error("Escribe el nombre del sector.");
+      const { error } = await supabase.from("reglas_cobertura").insert({
+        nombre: nuevoNombre.trim(), servicio_disponible: nuevoTipo !== "bloqueada",
+        hora_limite: nuevoTipo === "horario" ? nuevoLimite : null,
+        mensaje_cliente: nuevoMensaje.trim(), activa: true,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => { toast.success("Sector agregado."); setNuevoNombre(""); qc.invalidateQueries({ queryKey: ["admin-reglas-cobertura"] }); },
+    onError: (error: Error) => toast.error(error.message),
+  });
+  const eliminarRegla = useMutation({
+    mutationFn: async (id: string) => { const { error } = await supabase.from("reglas_cobertura").delete().eq("id", id); if (error) throw error; },
+    onSuccess: () => { toast.success("Regla eliminada."); qc.invalidateQueries({ queryKey: ["admin-reglas-cobertura"] }); },
+    onError: (error: Error) => toast.error(error.message),
   });
 
   const tarjetas = [
@@ -155,6 +196,35 @@ function Admin() {
                 </div>
               </article>
             ))}
+          </div>
+        </section>
+        <section className="mt-8 rounded-2xl border border-border bg-card p-6 shadow-soft">
+          <div className="flex items-center gap-3"><span className="flex size-11 items-center justify-center rounded-xl bg-brand-lavender text-primary"><MapPin className="size-5" /></span><div><h2 className="text-xl font-bold text-foreground">Cobertura y horarios por sector</h2><p className="mt-1 text-sm text-muted-foreground">Administra las reglas y avisos. Los polígonos geográficos aún deben delimitarse con datos verificados.</p></div></div>
+          {reglas.isError && <p role="alert" className="mt-4 text-sm text-destructive">No se pudieron cargar las reglas.</p>}
+          <div className="mt-5 space-y-4">
+            {reglas.data?.map((regla) => { const edit = ediciones[regla.id] ?? {}; return <article key={regla.id} className="rounded-xl border border-border p-4">
+              <div className="grid gap-3 md:grid-cols-2">
+                <label className="text-sm font-semibold">Sector<input className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2 font-normal" value={edit.nombre ?? regla.nombre} onChange={(e) => setEdiciones((v) => ({ ...v, [regla.id]: { ...v[regla.id], nombre: e.target.value } }))} /></label>
+                <label className="text-sm font-semibold">Hora límite (opcional)<input type="time" className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2 font-normal" value={(edit.hora_limite ?? regla.hora_limite ?? "").slice(0,5)} onChange={(e) => setEdiciones((v) => ({ ...v, [regla.id]: { ...v[regla.id], hora_limite: e.target.value || null } }))} /></label>
+                <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={edit.servicio_disponible ?? regla.servicio_disponible} onChange={(e) => setEdiciones((v) => ({ ...v, [regla.id]: { ...v[regla.id], servicio_disponible: e.target.checked } }))} /> Permitir domicilios</label>
+                <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={edit.activa ?? regla.activa} onChange={(e) => setEdiciones((v) => ({ ...v, [regla.id]: { ...v[regla.id], activa: e.target.checked } }))} /> Regla activa</label>
+              </div>
+              <label className="mt-3 block text-sm font-semibold">Mensaje para el cliente<textarea rows={2} className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2 font-normal" value={edit.mensaje_cliente ?? regla.mensaje_cliente} onChange={(e) => setEdiciones((v) => ({ ...v, [regla.id]: { ...v[regla.id], mensaje_cliente: e.target.value } }))} /></label>
+              <div className="mt-3 flex justify-end gap-2">
+                <button onClick={() => eliminarRegla.mutate(regla.id)} disabled={eliminarRegla.isPending} className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm"><Trash2 className="size-4" /> Eliminar</button>
+                <button onClick={() => guardarRegla.mutate(regla)} disabled={guardarRegla.isPending || !Object.keys(edit).length} className="inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50"><Save className="size-4" /> Guardar</button>
+              </div>
+              <p className="mt-2 text-xs text-muted-foreground">Delimitación en mapa: {Array.isArray(regla.poligono) && regla.poligono.length >= 3 ? "configurada" : "pendiente"}</p>
+            </article>; })}
+          </div>
+          <div className="mt-6 rounded-xl bg-brand-mist p-4"><h3 className="font-semibold">Agregar otro sector</h3>
+            <div className="mt-3 grid gap-3 md:grid-cols-2">
+              <input value={nuevoNombre} onChange={(e) => setNuevoNombre(e.target.value)} placeholder="Nombre del barrio o sector" className="rounded-lg border border-input bg-background px-3 py-2 text-sm" />
+              <select value={nuevoTipo} onChange={(e) => setNuevoTipo(e.target.value)} className="rounded-lg border border-input bg-background px-3 py-2 text-sm"><option value="bloqueada">Sin cobertura</option><option value="horario">Con hora límite</option><option value="normal">Cobertura normal</option></select>
+              {nuevoTipo === "horario" && <input type="time" value={nuevoLimite} onChange={(e) => setNuevoLimite(e.target.value)} className="rounded-lg border border-input bg-background px-3 py-2 text-sm" />}
+              <textarea rows={2} value={nuevoMensaje} onChange={(e) => setNuevoMensaje(e.target.value)} className="rounded-lg border border-input bg-background px-3 py-2 text-sm" />
+            </div>
+            <button onClick={() => crearRegla.mutate()} disabled={crearRegla.isPending || !nuevoNombre.trim()} className="mt-3 inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"><Plus className="size-4" /> Agregar sector</button>
           </div>
         </section>
       </main>
