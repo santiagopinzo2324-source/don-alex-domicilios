@@ -132,6 +132,34 @@ function Inicio() {
           </div>
         </section>
 
+        {/* Apartado exclusivo para domiciliarios */}
+        <section id="domiciliarios" className="scroll-mt-20 bg-brand-mist py-12 md:py-16">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div className="overflow-hidden rounded-3xl border border-brand-lilac/60 bg-card shadow-soft">
+              <div className="grid gap-6 p-6 sm:p-8 md:grid-cols-[1fr_auto] md:items-center">
+                <div className="flex items-start gap-4">
+                  <span className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-brand-lavender text-primary">
+                    <Bike className="size-7" />
+                  </span>
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-brand-vivid">Acceso de trabajo</p>
+                    <h2 className="mt-1 font-display text-2xl font-bold text-foreground sm:text-3xl">Domiciliarios</h2>
+                    <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">Ingresa a tu portal para revisar pedidos disponibles, gestionar tus entregas y consultar tus ganancias. El acceso para recibir servicios se habilita después de la aprobación de la administración y la verificación de los requisitos correspondientes.</p>
+                  </div>
+                </div>
+                <div className="flex flex-col gap-2 sm:flex-row md:flex-col">
+                  <Button asChild variant="hero" size="lg">
+                    <a href="/domiciliario">Entrar a Domiciliarios <ArrowRight className="ml-2 size-4" /></a>
+                  </Button>
+                  <Button asChild variant="outline" size="lg">
+                    <a href="/auth">Iniciar sesión</a>
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* Servicios */}
         <section id="servicios" className="scroll-mt-20 py-20 md:py-28">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
