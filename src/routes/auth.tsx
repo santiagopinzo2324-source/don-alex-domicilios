@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { Bike, MailCheck, Store, User } from "lucide-react";
+import { Bike, MailCheck, Store, User, Phone } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 import { toast } from "sonner";
 
@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
-import { esquemaIngreso, esquemaRegistro } from "@/lib/validacion";
+import { esquemaCelular, esquemaIngreso, esquemaRegistro } from "@/lib/validacion";
 
 type Modo = "ingresar" | "registro" | "recuperar";
 
@@ -108,48 +108,59 @@ function Separador() {
 }
 
 function FormIngreso({ onModo }: { onModo: (m: Modo) => void }) {
+  const [tipoAcceso, setTipoAcceso] = useState<"correo" | "domiciliario">("correo");
   const [errores, setErrores] = useState<Record<string, string>>({});
   const [cargando, setCargando] = useState(false);
 
   async function enviar(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const datos = Object.fromEntries(new FormData(e.currentTarget));
+    setErrores({});
+    setCargando(true);
+    if (tipoAcceso === "domiciliario") {
+      const celular = esquemaCelular.safeParse(String(datos.telefono ?? ""));
+      if (!celular.success) {
+        setErrores({ telefono: celular.error.issues[0]?.message ?? "Revisa el celular" });
+        setCargando(false);
+        return;
+      }
+      const { error } = await supabase.auth.signInWithPassword({
+        phone: "+57" + celular.data,
+        password: String(datos.password ?? ""),
+      });
+      setCargando(false);
+      if (error) toast.error("WhatsApp o contraseña incorrectos. Verifica que tu número esté confirmado.");
+      return;
+    }
     const r = esquemaIngreso.safeParse(datos);
     if (!r.success) {
       setErrores(Object.fromEntries(r.error.issues.map((i) => [i.path[0], i.message])));
+      setCargando(false);
       return;
     }
-    setErrores({});
-    setCargando(true);
     const { error } = await supabase.auth.signInWithPassword(r.data);
     setCargando(false);
-    if (error) {
-      toast.error(
-        error.message.includes("Email not confirmed")
-          ? "Confirma tu correo antes de ingresar."
-          : "Correo o contraseña incorrectos.",
-      );
-    }
+    if (error) toast.error(error.message.includes("Email not confirmed") ? "Confirma tu correo antes de ingresar." : "Correo o contraseña incorrectos.");
   }
 
   return (
     <>
       <h1 className="font-display text-2xl font-bold text-foreground">Bienvenido de nuevo</h1>
-      <p className="mt-1 text-sm text-muted-foreground">Ingresa para pedir y seguir tus domicilios.</p>
-      <div className="mt-7"><BotonGoogle /></div>
-      <Separador />
+      <p className="mt-1 text-sm text-muted-foreground">Ingresa a tu cuenta de Don Alex.</p>
+      <div className="mt-6 grid grid-cols-2 gap-2">
+        <Button type="button" variant={tipoAcceso === "correo" ? "default" : "outline"} onClick={() => setTipoAcceso("correo")}>Correo</Button>
+        <Button type="button" variant={tipoAcceso === "domiciliario" ? "default" : "outline"} onClick={() => setTipoAcceso("domiciliario")}><Phone className="mr-2 size-4" /> Domiciliario</Button>
+      </div>
+      {tipoAcceso === "correo" && <><div className="mt-5"><BotonGoogle /></div><Separador /></>}
       <form onSubmit={enviar} className="space-y-4" noValidate>
-        <Campo id="email" label="Correo electrónico" type="email" autoComplete="email" error={errores.email} />
+        {tipoAcceso === "correo"
+          ? <Campo id="email" label="Correo electrónico" type="email" autoComplete="email" error={errores.email} />
+          : <Campo id="telefono" label="Número de WhatsApp" type="tel" inputMode="tel" placeholder="311 819 9006" autoComplete="tel" error={errores.telefono} />}
         <Campo id="password" label="Contraseña" type="password" autoComplete="current-password" error={errores.password} />
-        <button type="button" onClick={() => onModo("recuperar")} className="text-sm font-semibold text-primary hover:underline">
-          ¿Olvidaste tu contraseña?
-        </button>
-        <Button type="submit" variant="hero" size="lg" className="w-full" disabled={cargando}>
-          {cargando ? "Ingresando…" : "Ingresar"}
-        </Button>
+        {tipoAcceso === "correo" && <button type="button" onClick={() => onModo("recuperar")} className="text-sm font-semibold text-primary hover:underline">¿Olvidaste tu contraseña?</button>}
+        <Button type="submit" variant="hero" size="lg" className="w-full" disabled={cargando}>{cargando ? "Ingresando…" : "Ingresar"}</Button>
       </form>
-      <p className="mt-6 text-center text-sm text-muted-foreground">
-        ¿No tienes cuenta?{" "}
+      <p className="mt-6 text-center text-sm text-muted-foreground">¿No tienes cuenta?{" "}
         <button onClick={() => onModo("registro")} className="font-semibold text-primary hover:underline">Crear cuenta</button>
       </p>
     </>
@@ -167,43 +178,83 @@ function FormRegistro({ onModo }: { onModo: (m: Modo) => void }) {
   const [errores, setErrores] = useState<Record<string, string>>({});
   const [cargando, setCargando] = useState(false);
   const [enviadoA, setEnviadoA] = useState<string | null>(null);
+  const [telefonoPendiente, setTelefonoPendiente] = useState<string | null>(null);
+  const [codigo, setCodigo] = useState("");
 
   async function enviar(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const datos = { ...Object.fromEntries(new FormData(e.currentTarget)), tipo_cuenta: tipo };
+    const bruto = Object.fromEntries(new FormData(e.currentTarget));
+    setErrores({});
+    setCargando(true);
+    if (tipo === "domiciliario") {
+      const celular = esquemaCelular.safeParse(String(bruto.telefono ?? ""));
+      const nombre = String(bruto.nombre_completo ?? "").trim();
+      const password = String(bruto.password ?? "");
+      const fallos: Record<string, string> = {};
+      if (!celular.success) fallos.telefono = celular.error.issues[0]?.message ?? "Revisa el celular";
+      if (nombre.length < 3) fallos.nombre_completo = "Escribe tu nombre completo";
+      if (password.length < 8) fallos.password = "La contraseña debe tener al menos 8 caracteres";
+      if (Object.keys(fallos).length) { setErrores(fallos); setCargando(false); return; }
+      const phone = "+57" + celular.data;
+      const { error } = await supabase.auth.signUp({
+        phone,
+        password,
+        options: { data: { nombre_completo: nombre, telefono: celular.data, tipo_cuenta: "domiciliario" } },
+      });
+      setCargando(false);
+      if (error) {
+        toast.error(error.message.toLowerCase().includes("phone") ? "No se pudo registrar. Revisa la configuración de SMS y que el número no esté registrado." : "No pudimos crear la cuenta. Intenta nuevamente.");
+        return;
+      }
+      setTelefonoPendiente(phone);
+      return;
+    }
+    const datos = { ...bruto, tipo_cuenta: tipo };
     const r = esquemaRegistro.safeParse(datos);
     if (!r.success) {
       setErrores(Object.fromEntries(r.error.issues.map((i) => [i.path[0], i.message])));
+      setCargando(false);
       return;
     }
-    setErrores({});
-    setCargando(true);
     const { email, password, ...meta } = r.data;
     const { error } = await supabase.auth.signUp({
-      email,
-      password,
+      email, password,
       options: { emailRedirectTo: `${window.location.origin}/auth`, data: meta },
     });
     setCargando(false);
-    if (error) {
-      toast.error(error.message.includes("already") ? "Ese correo ya tiene una cuenta." : "No pudimos crear la cuenta. Revisa los datos.");
-      return;
-    }
+    if (error) { toast.error(error.message.includes("already") ? "Ese correo ya tiene una cuenta." : "No pudimos crear la cuenta. Revisa los datos."); return; }
     setEnviadoA(email);
   }
 
-  if (enviadoA) {
-    return (
-      <div className="text-center">
-        <span className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-brand-lavender text-primary"><MailCheck className="size-7" /></span>
-        <h1 className="mt-5 font-display text-2xl font-bold text-foreground">Revisa tu correo</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Enviamos un enlace de confirmación a <strong className="text-foreground">{enviadoA}</strong>. Ábrelo para activar tu cuenta.
-        </p>
-        <Button variant="outline" className="mt-6" onClick={() => onModo("ingresar")}>Volver a ingresar</Button>
-      </div>
-    );
+  async function verificarCodigo(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!telefonoPendiente) return;
+    setCargando(true);
+    const { error } = await supabase.auth.verifyOtp({ phone: telefonoPendiente, token: codigo.trim(), type: "sms" });
+    setCargando(false);
+    if (error) { toast.error("El código no es válido o ya venció. Revisa el mensaje e inténtalo otra vez."); return; }
+    toast.success("Número verificado. Tu solicitud quedó pendiente de aprobación.");
   }
+
+  if (telefonoPendiente) return (
+    <div className="text-center">
+      <span className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-brand-lavender text-primary"><Phone className="size-7" /></span>
+      <h1 className="mt-5 font-display text-2xl font-bold text-foreground">Verifica tu WhatsApp</h1>
+      <p className="mt-2 text-sm text-muted-foreground">Enviamos un código de verificación al {telefonoPendiente}. Escríbelo para confirmar tu número.</p>
+      <form onSubmit={verificarCodigo} className="mt-5 space-y-4">
+        <Campo id="codigo" label="Código de verificación" inputMode="numeric" autoComplete="one-time-code" value={codigo} onChange={(e) => setCodigo(e.target.value)} />
+        <Button type="submit" variant="hero" size="lg" className="w-full" disabled={cargando || codigo.trim().length < 4}>{cargando ? "Verificando…" : "Verificar número"}</Button>
+      </form>
+    </div>
+  );
+  if (enviadoA) return (
+    <div className="text-center">
+      <span className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-brand-lavender text-primary"><MailCheck className="size-7" /></span>
+      <h1 className="mt-5 font-display text-2xl font-bold text-foreground">Revisa tu correo</h1>
+      <p className="mt-2 text-sm text-muted-foreground">Enviamos un enlace de confirmación a <strong className="text-foreground">{enviadoA}</strong>. Ábrelo para activar tu cuenta.</p>
+      <Button variant="outline" className="mt-6" onClick={() => onModo("ingresar")}>Volver a ingresar</Button>
+    </div>
+  );
 
   return (
     <>
@@ -211,38 +262,25 @@ function FormRegistro({ onModo }: { onModo: (m: Modo) => void }) {
       <p className="mt-1 text-sm text-muted-foreground">¿Cómo vas a usar Don Alex?</p>
       <div className="mt-5 grid grid-cols-3 gap-2" role="radiogroup" aria-label="Tipo de cuenta">
         {TIPOS.map(({ valor, texto, icono: Icono }) => (
-          <button
-            key={valor}
-            type="button"
-            role="radio"
-            aria-checked={tipo === valor}
-            onClick={() => setTipo(valor)}
-            className={cn(
-              "flex flex-col items-center gap-1.5 rounded-2xl border px-2 py-3 text-xs font-semibold transition-all",
-              tipo === valor ? "border-primary bg-brand-lavender text-brand-deep shadow-soft" : "border-border text-muted-foreground hover:border-brand-lilac",
-            )}
-          >
+          <button key={valor} type="button" role="radio" aria-checked={tipo === valor} onClick={() => setTipo(valor)}
+            className={cn("flex flex-col items-center gap-1.5 rounded-2xl border px-2 py-3 text-xs font-semibold transition-all",
+              tipo === valor ? "border-primary bg-brand-lavender text-brand-deep shadow-soft" : "border-border text-muted-foreground hover:border-brand-lilac")}>
             <Icono className="size-5" /> {texto}
           </button>
         ))}
       </div>
-      {tipo !== "cliente" && (
-        <p className="mt-3 rounded-xl bg-brand-mist p-3 text-xs text-muted-foreground">
-          Tu cuenta queda activa como cliente y un administrador de Don Alex aprobará tu perfil de {tipo === "domiciliario" ? "domiciliario" : "negocio"}.
-        </p>
-      )}
-      {tipo === "cliente" && (<><div className="mt-5"><BotonGoogle /></div><Separador /></>)}
+      {tipo !== "cliente" && <p className="mt-3 rounded-xl bg-brand-mist p-3 text-xs text-muted-foreground">
+        Tu solicitud de {tipo === "domiciliario" ? "domiciliario" : "negocio"} será revisada por un administrador antes de habilitar sus funciones.
+      </p>}
+      {tipo === "cliente" && <><div className="mt-5"><BotonGoogle /></div><Separador /></>}
       <form onSubmit={enviar} className={cn("space-y-4", tipo !== "cliente" && "mt-5")} noValidate>
         <Campo id="nombre_completo" label="Nombre completo" autoComplete="name" error={errores.nombre_completo} />
-        <Campo id="telefono" label="Celular" type="tel" inputMode="tel" placeholder="311 819 9006" autoComplete="tel" error={errores.telefono} />
-        <Campo id="email" label="Correo electrónico" type="email" autoComplete="email" error={errores.email} />
+        <Campo id="telefono" label="Número de WhatsApp" type="tel" inputMode="tel" placeholder="311 819 9006" autoComplete="tel" error={errores.telefono} />
+        {tipo !== "domiciliario" && <Campo id="email" label="Correo electrónico" type="email" autoComplete="email" error={errores.email} />}
         <Campo id="password" label="Contraseña" type="password" autoComplete="new-password" error={errores.password} />
-        <Button type="submit" variant="hero" size="lg" className="w-full" disabled={cargando}>
-          {cargando ? "Creando cuenta…" : "Crear cuenta"}
-        </Button>
+        <Button type="submit" variant="hero" size="lg" className="w-full" disabled={cargando}>{cargando ? "Creando cuenta…" : "Crear cuenta"}</Button>
       </form>
-      <p className="mt-6 text-center text-sm text-muted-foreground">
-        ¿Ya tienes cuenta?{" "}
+      <p className="mt-6 text-center text-sm text-muted-foreground">¿Ya tienes cuenta?{" "}
         <button onClick={() => onModo("ingresar")} className="font-semibold text-primary hover:underline">Ingresar</button>
       </p>
     </>
