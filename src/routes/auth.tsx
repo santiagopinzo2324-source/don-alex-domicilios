@@ -196,17 +196,22 @@ function FormRegistro({ onModo }: { onModo: (m: Modo) => void }) {
       if (password.length < 8) fallos.password = "La contraseña debe tener al menos 8 caracteres";
       if (Object.keys(fallos).length) { setErrores(fallos); setCargando(false); return; }
       const phone = "+57" + celular.data;
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         phone,
         password,
         options: { data: { nombre_completo: nombre, telefono: celular.data, tipo_cuenta: "domiciliario" } },
       });
       setCargando(false);
       if (error) {
-        toast.error(error.message.toLowerCase().includes("phone") ? "No se pudo registrar. Revisa la configuración de SMS y que el número no esté registrado." : "No pudimos crear la cuenta. Intenta nuevamente.");
+        toast.error(error.message.toLowerCase().includes("phone") ? "No se pudo crear la cuenta. Revisa que el acceso por teléfono esté habilitado en Supabase y que el número no esté registrado." : "No pudimos crear la cuenta. Intenta nuevamente.");
         return;
       }
-      setTelefonoPendiente(phone);
+      if (!data.session) {
+        toast.error("La cuenta se creó, pero Supabase aún exige confirmar el teléfono. Hay que desactivar esa confirmación en la configuración de autenticación.");
+        return;
+      }
+      toast.success("Solicitud registrada. Queda pendiente de aprobación.");
+      onModo("ingresar");
       return;
     }
     const datos = { ...bruto, tipo_cuenta: tipo };
@@ -226,27 +231,7 @@ function FormRegistro({ onModo }: { onModo: (m: Modo) => void }) {
     setEnviadoA(email);
   }
 
-  async function verificarCodigo(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    if (!telefonoPendiente) return;
-    setCargando(true);
-    const { error } = await supabase.auth.verifyOtp({ phone: telefonoPendiente, token: codigo.trim(), type: "sms" });
-    setCargando(false);
-    if (error) { toast.error("El código no es válido o ya venció. Revisa el mensaje e inténtalo otra vez."); return; }
-    toast.success("Número verificado. Tu solicitud quedó pendiente de aprobación.");
-  }
 
-  if (telefonoPendiente) return (
-    <div className="text-center">
-      <span className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-brand-lavender text-primary"><Phone className="size-7" /></span>
-      <h1 className="mt-5 font-display text-2xl font-bold text-foreground">Verifica tu WhatsApp</h1>
-      <p className="mt-2 text-sm text-muted-foreground">Enviamos un código de verificación al {telefonoPendiente}. Escríbelo para confirmar tu número.</p>
-      <form onSubmit={verificarCodigo} className="mt-5 space-y-4">
-        <Campo id="codigo" label="Código de verificación" inputMode="numeric" autoComplete="one-time-code" value={codigo} onChange={(e) => setCodigo(e.target.value)} />
-        <Button type="submit" variant="hero" size="lg" className="w-full" disabled={cargando || codigo.trim().length < 4}>{cargando ? "Verificando…" : "Verificar número"}</Button>
-      </form>
-    </div>
-  );
   if (enviadoA) return (
     <div className="text-center">
       <span className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-brand-lavender text-primary"><MailCheck className="size-7" /></span>
