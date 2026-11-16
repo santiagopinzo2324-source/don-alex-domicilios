@@ -9,6 +9,10 @@ export const EMPRESA = {
   horario: "Todos los días · 7:00 a. m. – 11:00 p. m.",
 } as const;
 
+/**
+ * Genera un enlace universal de WhatsApp con un mensaje opcional.
+ * wa.me permite que el dispositivo o navegador elija cómo abrir WhatsApp.
+ */
 export function enlaceWhatsApp(mensaje?: string): string {
   const base = `https://wa.me/${EMPRESA.whatsapp}`;
   return mensaje ? `${base}?text=${encodeURIComponent(mensaje)}` : base;
