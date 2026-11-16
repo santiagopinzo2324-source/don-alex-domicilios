@@ -36,7 +36,7 @@ function AccesoAdministracion() {
 
       // Enviar únicamente la clave apikey. No adjuntar Authorization heredado
       // de una sesión anterior: las claves publishable nuevas no son JWT.
-      const response = await fetch(`${projectUrl.replace(/\\/+$/, "")}/functions/v1/admin-login`, {
+      const response = await fetch(`${projectUrl.replace(/\/+$/, "")}/functions/v1/admin-login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
