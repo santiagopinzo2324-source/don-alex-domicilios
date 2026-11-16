@@ -23,12 +23,25 @@ from public.profiles p
 where p.tipo_cuenta_solicitada = 'domiciliario'
 on conflict (user_id) do nothing;
 
+-- Los domiciliarios cambian asignación/estado únicamente mediante las funciones atómicas.
+drop policy if exists pedidos_update_admin_or_assigned on public.pedidos;
+create policy pedidos_update_admin_or_restaurant on public.pedidos
+for update to authenticated
+using (
+  public.es_admin()
+  or (establecimiento_id is not null and public.es_propietario_establecimiento(establecimiento_id))
+)
+with check (
+  public.es_admin()
+  or (establecimiento_id is not null and public.es_propietario_establecimiento(establecimiento_id))
+);
+
 drop policy if exists pedidos_available_for_couriers on public.pedidos;
 create policy pedidos_available_for_couriers on public.pedidos
 for select to authenticated
 using (
   domiciliario_id is null
-  and estado in ('listo','confirmado')
+  and estado = 'listo'
   and public.es_domiciliario_activo()
 );
 
