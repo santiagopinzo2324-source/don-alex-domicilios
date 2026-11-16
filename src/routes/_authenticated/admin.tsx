@@ -52,7 +52,7 @@ async function cargarResumen() {
 async function cargarSolicitudes() {
   const { data: solicitudes, error } = await supabase
     .from("domiciliarios")
-    .select("user_id, estado, created_at")
+    .select("user_id, numero, estado, created_at")
     .eq("estado", "pendiente")
     .order("created_at", { ascending: true });
   if (error) throw error;
@@ -186,6 +186,7 @@ function Admin() {
               <article key={s.user_id} className="flex flex-col gap-4 rounded-xl border border-border p-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <p className="font-semibold text-foreground">{s.perfil?.nombre_completo || "Nombre no registrado"}</p>
+                  <p className="mt-1 text-sm font-bold text-primary">Código: DOM-{String(s.numero).padStart(3, "0")}</p>
                   <p className="mt-1 text-sm text-muted-foreground">{s.perfil?.telefono || "Teléfono no registrado"}</p>
                   <p className="mt-1 text-xs text-muted-foreground">Solicitud: {new Date(s.created_at).toLocaleDateString("es-CO")} · Estado: {s.estado}</p>
                   <p className="mt-1 text-xs text-muted-foreground">ID de cuenta: {s.user_id}</p>
