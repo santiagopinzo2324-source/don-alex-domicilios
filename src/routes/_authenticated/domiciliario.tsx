@@ -66,6 +66,7 @@ function PortalDomiciliario() {
 
   const d = consulta.data;
   const activo = d?.perfil?.estado === "activo";
+  const puedeSolicitarReingreso = ["rechazado", "retirado", "suspendido"].includes(d?.perfil?.estado ?? "");
   const cambiarEstado = (id: string, estado: string) =>
     actualizar.mutate({ fn: "domiciliario_actualizar_estado", args: { _pedido_id: id, _estado: estado } });
 
@@ -80,7 +81,7 @@ function PortalDomiciliario() {
         </div>
         {consulta.isLoading && <p className="mt-8 text-sm text-muted-foreground">Cargando tu información…</p>}
         {consulta.isError && <p role="alert" className="mt-6 rounded-xl bg-card p-4 text-sm text-destructive">No se pudo cargar el portal. Verifica que la base de datos esté actualizada y que tu cuenta esté registrada.</p>}
-        {d?.perfil?.estado !== "activo" && <section className="mt-8 rounded-2xl border border-brand-lilac bg-card p-6"><Clock3 className="size-8 text-primary" /><h2 className="mt-3 text-xl font-bold text-foreground">Solicitud en revisión</h2><p className="mt-2 text-sm text-muted-foreground">Tu cuenta de domiciliario todavía no está aprobada por Don Alex. Cuando el administrador revise tus datos y confirme los requisitos aplicables, podrás activar tu disponibilidad y recibir pedidos.</p><p className="mt-3 text-xs text-muted-foreground">Estado actual: {d?.perfil?.estado ?? "No hay solicitud registrada"}</p></section>}
+        {d?.perfil?.estado !== "activo" && <section className="mt-8 rounded-2xl border border-brand-lilac bg-card p-6"><Clock3 className="size-8 text-primary" /><h2 className="mt-3 text-xl font-bold text-foreground">{d?.perfil?.estado === "pendiente" ? "Solicitud en revisión" : d?.perfil?.estado === "rechazado" ? "Solicitud rechazada" : d?.perfil?.estado === "retirado" || d?.perfil?.estado === "suspendido" ? "Cuenta deshabilitada" : "Solicitud de domiciliario"}</h2><p className="mt-2 text-sm text-muted-foreground">{d?.perfil?.estado === "pendiente" ? "Tu solicitud está pendiente de revisión por la administración." : puedeSolicitarReingreso ? "Puedes enviar una nueva solicitud desde esta misma cuenta. La administración revisará nuevamente tu información antes de habilitarte." : "Tu cuenta todavía no está aprobada. Cuando la administración revise tus datos y confirme los requisitos aplicables, podrás activar tu disponibilidad y recibir pedidos."}</p><p className="mt-3 text-xs text-muted-foreground">Estado actual: {d?.perfil?.estado ?? "No hay solicitud registrada"}</p>{puedeSolicitarReingreso && <Button className="mt-4" disabled={actualizar.isPending} onClick={() => actualizar.mutate({ fn: "domiciliario_solicitar_reingreso", args: {} })}>Solicitar nueva revisión</Button>}</section>}
         {activo && <>
           <section className="mt-8 grid gap-4 sm:grid-cols-3">
             <Resumen icono={Wallet} titulo="Ganancias registradas" valor={formatearCOP(d?.total ?? 0)} />
