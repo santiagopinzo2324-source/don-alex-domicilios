@@ -5,7 +5,6 @@ import {
   CircleCheck,
   ClipboardList,
   HandCoins,
-  LayoutDashboard,
   MapPin,
   MessageCircle,
   Package,
@@ -59,7 +58,6 @@ const MODULOS = [
   { icono: Smartphone, titulo: "Clientes", texto: "Pide, paga y sigue tu domicilio en tiempo real.", etapa: 4 },
   { icono: Bike, titulo: "Domiciliarios", texto: "Recibe servicios, actualiza estados y controla tus ganancias.", etapa: 5 },
   { icono: Store, titulo: "Restaurantes", texto: "Gestiona tu menú, confirma pedidos y solicita domiciliario.", etapa: 6 },
-  { icono: LayoutDashboard, titulo: "Administración", texto: "Pedidos, tarifas, finanzas, usuarios y mapa en un solo lugar.", etapa: 3 },
   { icono: MessageCircle, titulo: "WhatsApp", texto: "Pedidos y seguimiento sin descargar aplicaciones.", etapa: 7 },
 ];
 
@@ -343,10 +341,10 @@ function Inicio() {
             <div className="max-w-2xl">
               <p className="text-sm font-bold uppercase tracking-[0.2em] text-brand-vivid">Plataforma Don Alex</p>
               <h2 className="mt-3 font-display text-3xl font-bold text-foreground sm:text-4xl">
-                Cinco módulos, una sola operación
+                Cuatro módulos, una sola operación
               </h2>
               <p className="mt-4 text-muted-foreground">
-                Clientes, domiciliarios, negocios, administración y WhatsApp conectados a la misma información.
+                Clientes, domiciliarios, negocios aliados y WhatsApp conectados a la misma operación.
               </p>
               <div className="mt-6 flex flex-wrap gap-3">
                 <a href="/domiciliario" className="inline-flex items-center justify-center rounded-xl bg-primary px-5 py-3 text-sm font-bold text-primary-foreground shadow-soft hover:opacity-90">Entrar al portal de domiciliarios</a>
