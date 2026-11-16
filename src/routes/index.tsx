@@ -25,7 +25,6 @@ import { PiePagina } from "@/components/sitio/PiePagina";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CATEGORIAS } from "@/lib/categorias";
-import { enlaceWhatsApp } from "@/lib/empresa";
 import { TARIFAS_POR_DEFECTO, formatearCOP } from "@/lib/tarifas";
 
 export const Route = createFileRoute("/")({
@@ -88,7 +87,7 @@ function Inicio() {
               </p>
               <div className="mt-9 flex flex-col gap-3 sm:flex-row">
                 <Button asChild variant="onBrand" size="xl">
-                  <a href={enlaceWhatsApp("Hola Don Alex, quiero pedir un domicilio")} target="_blank" rel="noreferrer">
+                  <a href="https://wa.me/573118199006?text=Hola%20Don%20Alex%2C%20quiero%20pedir%20un%20domicilio" target="_blank" rel="noopener noreferrer">
                     <MessageCircle /> Pedir por WhatsApp
                   </a>
                 </Button>
@@ -308,9 +307,9 @@ function Inicio() {
       <PiePagina />
 
       <a
-        href={enlaceWhatsApp("Hola Don Alex 👋")}
+        href="https://wa.me/573118199006?text=Hola%20Don%20Alex%20%F0%9F%91%8B"
         target="_blank"
-        rel="noreferrer"
+        rel="noopener noreferrer"
         aria-label="Escribir por WhatsApp"
         className="fixed bottom-5 right-5 z-50 flex size-14 items-center justify-center rounded-full bg-whatsapp text-whatsapp-foreground shadow-lift transition-transform hover:scale-105"
       >
@@ -376,7 +375,7 @@ function TarjetaAliado({
         <h3 className="mt-5 text-2xl font-bold">{titulo}</h3>
         <p className="mt-3 max-w-md text-on-brand-muted">{texto}</p>
         <Button asChild variant="onBrand" size="lg" className="mt-7">
-          <a href={enlaceWhatsApp(mensaje)} target="_blank" rel="noreferrer">
+          <a href={`https://wa.me/573118199006?text=${encodeURIComponent(mensaje)}`} target="_blank" rel="noopener noreferrer">
             {cta} <ArrowRight />
           </a>
         </Button>
