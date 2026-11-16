@@ -10,11 +10,10 @@ export const EMPRESA = {
 } as const;
 
 /**
- * Abre WhatsApp Web con el número de Don Alex y un mensaje opcional.
- * Se usa el enlace web directo para evitar la redirección problemática
- * que algunos navegadores muestran al abrir api.whatsapp.com.
+ * Genera un enlace universal de WhatsApp con un mensaje opcional.
+ * wa.me permite que el dispositivo o navegador elija cómo abrir WhatsApp.
  */
 export function enlaceWhatsApp(mensaje?: string): string {
-  const base = `https://web.whatsapp.com/send?phone=${EMPRESA.whatsapp}`;
-  return mensaje ? `${base}&text=${encodeURIComponent(mensaje)}` : base;
+  const base = `https://wa.me/${EMPRESA.whatsapp}`;
+  return mensaje ? `${base}?text=${encodeURIComponent(mensaje)}` : base;
 }
