@@ -11,6 +11,8 @@ const enlaces = [
   { href: "/#tarifas", texto: "Tarifas" },
   { href: "/#categorias", texto: "Categorías" },
   { href: "/#aliados", texto: "Aliados" },
+  { href: "/#cobertura", texto: "Cobertura" },
+  { href: "/#mapa", texto: "Mapa" },
 ];
 
 export function Encabezado() {
@@ -51,6 +53,9 @@ export function Encabezado() {
                 </Button>
               ))}
           </span>
+          <Button asChild variant="ghost" size="sm" className="hidden h-10 px-3 sm:inline-flex">
+            <a href="/domiciliario">Portal domiciliarios</a>
+          </Button>
           <Button asChild variant="hero" size="sm" className="hidden h-10 px-4 sm:inline-flex">
             <a href={enlaceWhatsApp("Hola Don Alex, quiero pedir un domicilio")} target="_blank" rel="noreferrer">
               <MessageCircle /> Pedir domicilio
