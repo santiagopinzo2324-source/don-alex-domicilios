@@ -130,6 +130,7 @@ export type Database = {
       domiciliarios: {
         Row: {
           created_at: string
+          numero: number
           disponible: boolean
           documento_identidad: string | null
           estado: Database["public"]["Enums"]["estado_registro"]
@@ -142,6 +143,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          numero?: number
           disponible?: boolean
           documento_identidad?: string | null
           estado?: Database["public"]["Enums"]["estado_registro"]
@@ -154,6 +156,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          numero?: number
           disponible?: boolean
           documento_identidad?: string | null
           estado?: Database["public"]["Enums"]["estado_registro"]
