@@ -15,6 +15,7 @@ export const Route = createFileRoute("/administracion")({
 });
 
 function AccesoAdministracion() {
+  const [usuario, setUsuario] = useState("alex");
   const [contrasena, setContrasena] = useState("");
   const [cargando, setCargando] = useState(false);
 
@@ -37,7 +38,7 @@ function AccesoAdministracion() {
           "Content-Type": "application/json",
           apikey: publishableKey,
         },
-        body: JSON.stringify({ action: "login", username: "alex", password: contrasena }),
+        body: JSON.stringify({ action: "login", username: usuario.trim(), password: contrasena }),
       });
       acceso = await response.json().catch(() => null);
       if (!response.ok) {
@@ -80,8 +81,12 @@ function AccesoAdministracion() {
         <Link to="/" className="mb-8 inline-block"><Logo tamano={46} /></Link>
         <span className="flex size-12 items-center justify-center rounded-2xl bg-brand-lavender text-primary"><ShieldCheck className="size-6" /></span>
         <h1 className="mt-5 font-display text-2xl font-bold text-foreground">Acceso administrativo</h1>
-        <p className="mt-2 text-sm text-muted-foreground">Ingresa tu contraseña de administración.</p>
+        <p className="mt-2 text-sm text-muted-foreground">Ingresa tu usuario y contraseña para abrir el panel administrativo.</p>
         <form onSubmit={ingresar} className="mt-6 space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="usuario">Usuario</Label>
+            <Input id="usuario" value={usuario} onChange={(e) => setUsuario(e.target.value)} autoComplete="username" placeholder="Usuario" required />
+          </div>
           <div className="space-y-2">
             <Label htmlFor="contrasena">Contraseña</Label>
             <Input id="contrasena" type="password" value={contrasena} onChange={(e) => setContrasena(e.target.value)} autoComplete="current-password" required />
