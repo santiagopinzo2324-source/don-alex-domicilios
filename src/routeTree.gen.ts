@@ -15,6 +15,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as MarcaRouteImport } from './routes/marca'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as AuthenticatedCuentaRouteImport } from './routes/_authenticated/cuenta'
+import { Route as AuthenticatedDomiciliarioRouteImport } from './routes/_authenticated/domiciliario'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -40,6 +41,11 @@ const ResetPasswordRoute = ResetPasswordRouteImport.update({
   path: '/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedDomiciliarioRoute = AuthenticatedDomiciliarioRouteImport.update({
+  id: '/domiciliario',
+  path: '/domiciliario',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedCuentaRoute = AuthenticatedCuentaRouteImport.update({
   id: '/cuenta',
   path: '/cuenta',
@@ -52,6 +58,7 @@ export interface FileRoutesByFullPath {
   '/marca': typeof MarcaRoute
   '/reset-password': typeof ResetPasswordRoute
   '/cuenta': typeof AuthenticatedCuentaRoute
+  '/domiciliario': typeof AuthenticatedDomiciliarioRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -59,6 +66,7 @@ export interface FileRoutesByTo {
   '/marca': typeof MarcaRoute
   '/reset-password': typeof ResetPasswordRoute
   '/cuenta': typeof AuthenticatedCuentaRoute
+  '/domiciliario': typeof AuthenticatedDomiciliarioRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -68,12 +76,13 @@ export interface FileRoutesById {
   '/marca': typeof MarcaRoute
   '/reset-password': typeof ResetPasswordRoute
   '/_authenticated/cuenta': typeof AuthenticatedCuentaRoute
+  '/_authenticated/domiciliario': typeof AuthenticatedDomiciliarioRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/marca' | '/reset-password' | '/cuenta'
+  fullPaths: '/' | '/auth' | '/marca' | '/reset-password' | '/cuenta' | '/domiciliario'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/marca' | '/reset-password' | '/cuenta'
+  to: '/' | '/auth' | '/marca' | '/reset-password' | '/cuenta' | '/domiciliario'
   id:
     | '__root__'
     | '/'
@@ -145,6 +154,7 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedCuentaRoute: AuthenticatedCuentaRoute,
+  AuthenticatedDomiciliarioRoute: AuthenticatedDomiciliarioRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
