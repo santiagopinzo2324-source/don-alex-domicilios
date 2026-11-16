@@ -140,7 +140,7 @@ function Admin() {
       if (!session) throw new Error("Tu sesión terminó. Ingresa nuevamente.");
       const projectUrl = import.meta.env.VITE_SUPABASE_URL;
       const publishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-      const response = await fetch(projectUrl.replace(/\\/+$/, "") + "/functions/v1/admin-login", {
+      const response = await fetch(projectUrl.replace(/\/+$/, "") + "/functions/v1/admin-login", {
         method: "POST",
         headers: { "Content-Type": "application/json", apikey: publishableKey, Authorization: "Bearer " + session.access_token },
         body: JSON.stringify({ action: "change_password", current_password: claveActual, new_password: claveNueva }),
