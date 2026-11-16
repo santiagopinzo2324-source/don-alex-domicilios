@@ -25,7 +25,7 @@ function AccesoAdministracion() {
     let acceso: { access_token?: string; refresh_token?: string; error?: string } | null = null;
     try {
       const projectUrl = "https://rnamhjkwbygmzwyjredd.supabase.co";
-      const publishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      const publishableKey = "sb_publishable_JUWjIGGskjjpZYnwsN4wmA_epAOd6bW";
       if (!projectUrl || !publishableKey) {
         throw new Error("La conexión con el servicio de acceso no está configurada.");
       }
