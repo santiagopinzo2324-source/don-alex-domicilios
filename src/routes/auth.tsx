@@ -178,8 +178,6 @@ function FormRegistro({ onModo }: { onModo: (m: Modo) => void }) {
   const [errores, setErrores] = useState<Record<string, string>>({});
   const [cargando, setCargando] = useState(false);
   const [enviadoA, setEnviadoA] = useState<string | null>(null);
-  const [telefonoPendiente, setTelefonoPendiente] = useState<string | null>(null);
-  const [codigo, setCodigo] = useState("");
 
   async function enviar(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
