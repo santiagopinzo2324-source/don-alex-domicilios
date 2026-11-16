@@ -26,12 +26,36 @@ function AccesoAdministracion() {
       return;
     }
     setCargando(true);
-    const { data: acceso, error } = await supabase.functions.invoke("admin-login", {
-      body: { username: usuario.trim(), password: contrasena },
-    });
-    if (error || !acceso?.access_token || !acceso?.refresh_token) {
+    let acceso: { access_token?: string; refresh_token?: string; error?: string } | null = null;
+    try {
+      const projectUrl = import.meta.env.VITE_SUPABASE_URL;
+      const publishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      if (!projectUrl || !publishableKey) {
+        throw new Error("La conexión con el servicio de acceso no está configurada.");
+      }
+
+      // Enviar únicamente la clave apikey. No adjuntar Authorization heredado
+      // de una sesión anterior: las claves publishable nuevas no son JWT.
+      const response = await fetch(`${projectUrl.replace(/\\/+$/, "")}/functions/v1/admin-login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: publishableKey,
+        },
+        body: JSON.stringify({ username: usuario.trim(), password: contrasena }),
+      });
+      acceso = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(acceso?.error || `El servicio de acceso respondió con código ${response.status}.`);
+      }
+    } catch (err) {
       setCargando(false);
-      toast.error(acceso?.error || "No fue posible ingresar. Verifica tus datos.");
+      toast.error(err instanceof Error ? err.message : "No fue posible conectar con el acceso administrativo.");
+      return;
+    }
+    if (!acceso?.access_token || !acceso?.refresh_token) {
+      setCargando(false);
+      toast.error(acceso?.error || "El servicio no entregó una sesión válida. Revisa la configuración administrativa.");
       return;
     }
     const { error: sessionError } = await supabase.auth.setSession({
