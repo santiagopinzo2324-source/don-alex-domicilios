@@ -41,7 +41,7 @@ create policy pedidos_available_for_couriers on public.pedidos
 for select to authenticated
 using (
   domiciliario_id is null
-  and estado = 'listo'
+  and estado in ('listo','confirmado')
   and public.es_domiciliario_activo()
 );
 
@@ -105,3 +105,44 @@ end $$;
 grant execute on function public.domiciliario_disponibilidad(boolean) to authenticated;
 grant execute on function public.domiciliario_aceptar_pedido(uuid) to authenticated;
 grant execute on function public.domiciliario_actualizar_estado(uuid, public.estado_pedido) to authenticated;
+
+
+-- Aprobación/rechazo de solicitudes desde el panel administrativo.
+-- Rechazar usa el estado suspendido porque estado_registro no tiene valor "rechazado".
+create or replace function public.admin_revisar_domiciliario(_user_id uuid, _aprobar boolean)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not public.es_admin() then
+    raise exception 'No tienes permisos para revisar solicitudes.';
+  end if;
+
+  if not exists (select 1 from public.domiciliarios where user_id = _user_id) then
+    raise exception 'No existe una solicitud de domiciliario para ese usuario.';
+  end if;
+
+  update public.domiciliarios
+  set estado = case when _aprobar then 'activo'::public.estado_registro else 'suspendido'::public.estado_registro end,
+      disponible = false,
+      updated_at = now()
+  where user_id = _user_id;
+
+  if _aprobar then
+    insert into public.user_roles(user_id, role)
+    values (_user_id, 'domiciliario')
+    on conflict (user_id, role) do nothing;
+  else
+    delete from public.user_roles
+    where user_id = _user_id and role = 'domiciliario';
+  end if;
+
+  insert into public.registro_actividad(actor_id, accion, entidad, entidad_id, detalle)
+  values (auth.uid(), case when _aprobar then 'aprobar_domiciliario' else 'rechazar_domiciliario' end,
+          'domiciliario', _user_id::text, jsonb_build_object('aprobado', _aprobar));
+end;
+$$;
+
+grant execute on function public.admin_revisar_domiciliario(uuid, boolean) to authenticated;

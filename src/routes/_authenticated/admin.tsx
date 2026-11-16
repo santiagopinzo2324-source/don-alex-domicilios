@@ -1,6 +1,7 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
-import { Activity, Bike, ClipboardList, Clock3, DollarSign, PackageCheck, RefreshCw, Store, Users } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Activity, Bike, ClipboardList, Clock3, DollarSign, PackageCheck, RefreshCw, Store, Users, CheckCircle2, XCircle } from "lucide-react";
+import { toast } from "sonner";
 
 import { Encabezado } from "@/components/sitio/Encabezado";
 import { supabase } from "@/integrations/supabase/client";
@@ -47,8 +48,43 @@ async function cargarResumen() {
   };
 }
 
+async function cargarSolicitudes() {
+  const { data: solicitudes, error } = await supabase
+    .from("domiciliarios")
+    .select("user_id, estado, created_at")
+    .eq("estado", "pendiente")
+    .order("created_at", { ascending: true });
+  if (error) throw error;
+  const ids = (solicitudes ?? []).map((s) => s.user_id);
+  if (ids.length === 0) return [];
+  const { data: perfiles, error: perfilError } = await supabase
+    .from("profiles")
+    .select("id, nombre_completo, telefono")
+    .in("id", ids);
+  if (perfilError) throw perfilError;
+  return (solicitudes ?? []).map((s) => ({
+    ...s,
+    perfil: perfiles?.find((p) => p.id === s.user_id) ?? null,
+  }));
+}
+
 function Admin() {
+  const qc = useQueryClient();
   const resumen = useQuery({ queryKey: ["admin-resumen"], queryFn: cargarResumen, refetchInterval: 30000 });
+  const solicitudes = useQuery({ queryKey: ["admin-solicitudes-domiciliarios"], queryFn: cargarSolicitudes, refetchInterval: 30000 });
+  const revisar = useMutation({
+    mutationFn: async ({ userId, aprobar }: { userId: string; aprobar: boolean }) => {
+      const { error } = await supabase.rpc("admin_revisar_domiciliario", { _user_id: userId, _aprobar: aprobar });
+      if (error) throw error;
+    },
+    onSuccess: (_data, variables) => {
+      toast.success(variables.aprobar ? "Domiciliario aprobado." : "Solicitud rechazada.");
+      qc.invalidateQueries({ queryKey: ["admin-solicitudes-domiciliarios"] });
+      qc.invalidateQueries({ queryKey: ["admin-resumen"] });
+    },
+    onError: (error: Error) => toast.error(error.message || "No se pudo revisar la solicitud."),
+  });
+
   const tarjetas = [
     { nombre: "Pedidos de hoy", valor: resumen.data?.pedidos, icono: ClipboardList },
     { nombre: "Pendientes", valor: resumen.data?.pendientes, icono: Clock3 },
@@ -69,7 +105,7 @@ function Admin() {
             <h1 className="mt-1 font-display text-3xl font-bold text-foreground">Administración Don Alex</h1>
             <p className="mt-2 text-sm text-muted-foreground">Resumen conectado a los registros de la plataforma.</p>
           </div>
-          <button onClick={() => resumen.refetch()} className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground hover:border-brand-lilac">
+          <button onClick={() => { resumen.refetch(); solicitudes.refetch(); }} className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground hover:border-brand-lilac">
             <RefreshCw className="size-4" /> Actualizar
           </button>
         </div>
@@ -97,8 +133,29 @@ function Admin() {
         </section>
 
         <section className="mt-8 rounded-2xl border border-border bg-card p-6 shadow-soft">
-          <h2 className="text-lg font-bold text-foreground">Siguiente control operativo</h2>
-          <p className="mt-2 text-sm leading-6 text-muted-foreground">Este primer panel muestra indicadores reales de la base de datos. La gestión detallada de pedidos, asignación de domiciliarios, aprobación de negocios, liquidaciones, mapas y reportes se desarrollará en las siguientes etapas; no se presentan aquí como funciones terminadas.</p>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div><h2 className="text-xl font-bold text-foreground">Solicitudes de domiciliarios</h2><p className="mt-1 text-sm text-muted-foreground">Revisa la información y confirma los requisitos aplicables antes de habilitar una cuenta.</p></div>
+            <span className="rounded-full bg-brand-lavender px-3 py-1 text-sm font-semibold text-primary">{solicitudes.data?.length ?? 0} pendientes</span>
+          </div>
+          {solicitudes.isError && <p role="alert" className="mt-4 text-sm text-destructive">No se pudieron cargar las solicitudes. Comprueba que la migración del portal esté aplicada.</p>}
+          {solicitudes.isLoading && <p className="mt-4 text-sm text-muted-foreground">Cargando solicitudes…</p>}
+          {!solicitudes.isLoading && !solicitudes.isError && solicitudes.data?.length === 0 && <p className="mt-4 rounded-xl bg-brand-mist p-4 text-sm text-muted-foreground">No hay solicitudes pendientes por ahora.</p>}
+          <div className="mt-4 space-y-3">
+            {solicitudes.data?.map((s) => (
+              <article key={s.user_id} className="flex flex-col gap-4 rounded-xl border border-border p-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="font-semibold text-foreground">{s.perfil?.nombre_completo || "Nombre no registrado"}</p>
+                  <p className="mt-1 text-sm text-muted-foreground">{s.perfil?.telefono || "Teléfono no registrado"}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">Solicitud: {new Date(s.created_at).toLocaleDateString("es-CO")} · Estado: {s.estado}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">ID de cuenta: {s.user_id}</p>
+                </div>
+                <div className="flex gap-2">
+                  <button disabled={revisar.isPending} onClick={() => revisar.mutate({ userId: s.user_id, aprobar: false })} className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-semibold text-foreground disabled:opacity-50"><XCircle className="size-4" /> Rechazar</button>
+                  <button disabled={revisar.isPending} onClick={() => revisar.mutate({ userId: s.user_id, aprobar: true })} className="inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50"><CheckCircle2 className="size-4" /> Aprobar</button>
+                </div>
+              </article>
+            ))}
+          </div>
         </section>
       </main>
     </div>
