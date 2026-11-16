@@ -230,6 +230,27 @@ function Inicio() {
           </div>
         </section>
 
+        {/* Mapa de referencia de cobertura */}
+        <section id="mapa" className="scroll-mt-20 bg-brand-mist py-16 md:py-20">
+          <div className="mx-auto grid max-w-7xl gap-8 px-4 sm:px-6 lg:grid-cols-[1fr_1.1fr] lg:px-8">
+            <div>
+              <p className="text-sm font-bold uppercase tracking-[0.2em] text-brand-vivid">Mapa de Pitalito</p>
+              <h2 className="mt-3 font-display text-3xl font-bold text-foreground">Consulta nuestra zona de servicio</h2>
+              <p className="mt-4 text-sm leading-relaxed text-muted-foreground">Este mapa te permite ubicar Pitalito y orientarte. Los límites exactos de cada barrio todavía están pendientes de validación; por eso no usamos el mapa para aprobar o rechazar automáticamente una dirección.</p>
+              <ul className="mt-6 space-y-3 text-sm">
+                <li className="rounded-xl border border-border bg-card p-4"><strong className="text-foreground">Barrio Popular y Porvenir</strong><p className="mt-1 text-muted-foreground">Sin cobertura por el momento.</p></li>
+                <li className="rounded-xl border border-border bg-card p-4"><strong className="text-foreground">Villa del Prado</strong><p className="mt-1 text-muted-foreground">Pedidos hasta las 5:30 p. m., sujetos a confirmación.</p></li>
+                <li className="rounded-xl border border-border bg-card p-4"><strong className="text-foreground">Otros sectores</strong><p className="mt-1 text-muted-foreground">Confirmamos disponibilidad antes de aceptar el domicilio.</p></li>
+              </ul>
+              <a href="https://www.openstreetmap.org/search?query=Pitalito%2C%20Huila%2C%20Colombia" target="_blank" rel="noreferrer" className="mt-5 inline-flex items-center gap-2 font-semibold text-primary hover:underline">Abrir mapa completo de Pitalito <MapPin className="size-4" /></a>
+            </div>
+            <div className="overflow-hidden rounded-3xl border border-border bg-card shadow-soft">
+              <iframe title="Mapa de referencia de Pitalito, Huila" src="https://www.openstreetmap.org/export/embed.html?bbox=-76.10%2C1.80%2C-75.99%2C1.90&layer=mapnik" className="h-[380px] w-full border-0 sm:h-[460px]" loading="lazy" referrerPolicy="no-referrer-when-downgrade" />
+              <p className="p-3 text-xs text-muted-foreground">Mapa de referencia © OpenStreetMap. No representa aún los límites oficiales de cobertura de Don Alex.</p>
+            </div>
+          </div>
+        </section>
+
         {/* Categorías */}
         <section id="categorias" className="scroll-mt-20 py-20 md:py-28">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
