@@ -47,11 +47,11 @@ function PortalDomiciliario() {
         supabase.from("pedidos").select("id, numero, cliente_nombre, cliente_telefono, recogida_direccion, entrega_direccion, entrega_barrio, valor_domicilio, estado, created_at").is("domiciliario_id", null).in("estado", ["listo", "confirmado"]).order("created_at", { ascending: true }).limit(20),
         supabase.from("pedidos").select("id, numero, cliente_nombre, cliente_telefono, recogida_direccion, entrega_direccion, entrega_barrio, valor_domicilio, estado").eq("domiciliario_id", auth.user.id).in("estado", ["asignado", "hacia_recogida", "recogido", "hacia_entrega"]).order("asignado_at", { ascending: false }),
         supabase.from("pedidos").select("id, numero, pago_domiciliario, pago_domiciliario_liquidado, estado, created_at, entregado_at").eq("domiciliario_id", auth.user.id).in("estado", ["entregado", "finalizado"]).order("entregado_at", { ascending: false }).limit(100),
-        supabase.from("ranking_domiciliarios").select("domiciliario_id, puesto, entregas, promedio_calificacion").eq("domiciliario_id", auth.user.id).maybeSingle(),
-        supabase.from("calificaciones_domiciliarios").select("id, estrellas, comentario, created_at").eq("domiciliario_id", auth.user.id).order("created_at", { ascending: false }).limit(20),
-        supabase.from("domiciliario_actividad").select("tipo, created_at").eq("domiciliario_id", auth.user.id).order("created_at", { ascending: false }).limit(30),
+        (supabase as any).from("ranking_domiciliarios").select("domiciliario_id, puesto, entregas, promedio_calificacion").eq("domiciliario_id", auth.user.id).maybeSingle(),
+        (supabase as any).from("calificaciones_domiciliarios").select("id, estrellas, comentario, created_at").eq("domiciliario_id", auth.user.id).order("created_at", { ascending: false }).limit(20),
+        (supabase as any).from("domiciliario_actividad").select("tipo, created_at").eq("domiciliario_id", auth.user.id).order("created_at", { ascending: false }).limit(30),
         supabase.from("notificaciones").select("id, titulo, cuerpo, leida, created_at").eq("user_id", auth.user.id).order("created_at", { ascending: false }).limit(15),
-        supabase.from("solicitudes_ayuda_domiciliarios").select("id, categoria, descripcion, estado, respuesta, created_at").eq("domiciliario_id", auth.user.id).order("created_at", { ascending: false }).limit(10),
+        (supabase as any).from("solicitudes_ayuda_domiciliarios").select("id, categoria, descripcion, estado, respuesta, created_at").eq("domiciliario_id", auth.user.id).order("created_at", { ascending: false }).limit(10),
       ]);
       const error = [perfil, disponibles, asignados, ganancias, historial, ranking, calificaciones, actividad, avisos, ayudas].find((r) => r.error)?.error;
       if (error) throw error;
@@ -134,7 +134,7 @@ function PortalDomiciliario() {
             <div className="mt-3 grid gap-3 sm:grid-cols-[220px_1fr_auto]">
               <select className="rounded-xl border border-input bg-background px-3 py-2 text-sm" value={categoriaAyuda} onChange={(e)=>setCategoriaAyuda(e.target.value)}><option>Problema con un pedido</option><option>Problema con un cliente</option><option>Problema con un establecimiento</option><option>Problema con un pago</option><option>Otro asunto</option></select>
               <Input placeholder="Cuéntanos qué ocurrió" value={mensajeAyuda} onChange={(e)=>setMensajeAyuda(e.target.value)} />
-              <Button disabled={!mensajeAyuda.trim() || actualizar.isPending} onClick={async()=>{const {data:userData}=await supabase.auth.getUser(); if(!userData.user)return; const {error}=await supabase.from("solicitudes_ayuda_domiciliarios").insert({domiciliario_id:userData.user.id,categoria:categoriaAyuda,descripcion:mensajeAyuda.trim()}); if(error){toast.error(error.message);return;} setMensajeAyuda(""); toast.success("Tu reporte fue enviado."); void qc.invalidateQueries({queryKey:["portal-domiciliario"]});}}>Enviar reporte</Button>
+              <Button disabled={!mensajeAyuda.trim() || actualizar.isPending} onClick={async()=>{const {data:userData}=await supabase.auth.getUser(); if(!userData.user)return; const {error}=await (supabase as any).from("solicitudes_ayuda_domiciliarios").insert({domiciliario_id:userData.user.id,categoria:categoriaAyuda,descripcion:mensajeAyuda.trim()}); if(error){toast.error(error.message);return;} setMensajeAyuda(""); toast.success("Tu reporte fue enviado."); void qc.invalidateQueries({queryKey:["portal-domiciliario"]});}}>Enviar reporte</Button>
             </div>
             <div className="mt-3 space-y-2">{d?.ayudas.map((a)=><article key={a.id} className="rounded-xl bg-muted/50 p-3 text-sm"><div className="flex justify-between"><strong>{a.categoria}</strong><span>{a.estado}</span></div><p>{a.descripcion}</p>{a.respuesta&&<p className="mt-1 text-primary">Respuesta: {a.respuesta}</p>}</article>)}</div>
           </section>
