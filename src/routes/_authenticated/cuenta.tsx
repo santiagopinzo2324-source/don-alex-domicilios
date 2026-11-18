@@ -1,6 +1,6 @@
 import { queryOptions, useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Bike, Clock3, Home, LogOut, MapPin, MessageCircle, Package, RefreshCw, Star, Store, Trash2, UserRound } from "lucide-react";
+import { Bike, Clock3, Home, LogOut, MapPin, MessageCircle, Package, PlusCircle, RefreshCw, Star, Store, Trash2, UserRound } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
 
