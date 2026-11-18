@@ -1,6 +1,6 @@
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Activity, Bike, ClipboardList, Clock3, DollarSign, PackageCheck, LogOut, RefreshCw, Store, Users, MapPin, Plus, Save, Trash2, CheckCircle2, Bell, Volume2, VolumeX } from "lucide-react";
 import { toast } from "sonner";
 
@@ -62,6 +62,26 @@ async function cargarReglasCobertura() {
 function AvisosAdministracion() {
   const [sonido, setSonido] = useState(false);
   const [usuarioId, setUsuarioId] = useState<string | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const reproducirSonido = () => {
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = audioContextRef.current ?? new AudioCtx();
+      audioContextRef.current = ctx;
+      if (ctx.state === "suspended") void ctx.resume();
+      const ahora = ctx.currentTime;
+      [740, 990].forEach((frecuencia, i) => {
+        const osc = ctx.createOscillator(); const gain = ctx.createGain();
+        osc.type = "sine"; osc.frequency.setValueAtTime(frecuencia, ahora + i * 0.16);
+        gain.gain.setValueAtTime(0.0001, ahora + i * 0.16);
+        gain.gain.exponentialRampToValueAtTime(0.16, ahora + i * 0.16 + 0.025);
+        gain.gain.exponentialRampToValueAtTime(0.0001, ahora + i * 0.16 + 0.22);
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.start(ahora + i * 0.16); osc.stop(ahora + i * 0.16 + 0.23);
+      });
+    } catch { /* El navegador puede bloquear audio si la pestaña no está activa. */ }
+  };
   const avisos = useQuery({
     queryKey: ["admin-notificaciones"],
     enabled: !!usuarioId,
@@ -82,27 +102,20 @@ function AvisosAdministracion() {
     void supabase.auth.getUser().then(({ data }) => {
       if (!activo || !data.user) return;
       setUsuarioId(data.user.id);
-      channel = supabase.channel("admin-notificaciones-live")
+      channel = supabase.channel(`admin-notificaciones-live-${data.user.id}`)
+        .on("postgres_changes", {
+          event: "INSERT", schema: "public", table: "pedidos",
+        }, () => {
+          if (sonido) { reproducirSonido(); toast("¡Llegó un pedido nuevo!"); }
+        })
         .on("postgres_changes", {
           event: "INSERT", schema: "public", table: "notificaciones",
           filter: `user_id=eq.${data.user.id}`,
-        }, () => {
+        }, (payload) => {
           void avisos.refetch();
-          if (sonido) {
-            try {
-              const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-              const ctx = new AudioCtx();
-              const osc = ctx.createOscillator();
-              const gain = ctx.createGain();
-              osc.type = "sine";
-              osc.frequency.setValueAtTime(740, ctx.currentTime);
-              gain.gain.setValueAtTime(0.0001, ctx.currentTime);
-              gain.gain.exponentialRampToValueAtTime(0.16, ctx.currentTime + 0.03);
-              gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.5);
-              osc.connect(gain); gain.connect(ctx.destination);
-              osc.start(); osc.stop(ctx.currentTime + 0.51);
-              window.setTimeout(() => void ctx.close(), 700);
-            } catch { /* El navegador puede bloquear el audio. */ }
+          if (sonido && !(payload.new as { pedido_id?: string | null }).pedido_id) {
+            reproducirSonido();
+            toast("Tienes un nuevo aviso de administración.");
           }
         }).subscribe();
     });
@@ -116,7 +129,7 @@ function AvisosAdministracion() {
     <section className="mt-6 rounded-2xl border border-border bg-card p-5 shadow-soft">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div><h2 className="flex items-center gap-2 text-lg font-bold"><Bell className="size-5 text-primary" /> Avisos de operación</h2><p className="mt-1 text-sm text-muted-foreground">Cancelaciones, novedades y notificaciones dirigidas a administración.</p></div>
-        <Button size="sm" variant={sonido ? "outline" : "hero"} onClick={() => setSonido((v) => !v)}>{sonido ? <><VolumeX className="mr-2 size-4" /> Silenciar avisos</> : <><Volume2 className="mr-2 size-4" /> Activar sonido</>}</Button>
+        <Button size="sm" variant={sonido ? "outline" : "hero"} onClick={() => { if (!sonido) { reproducirSonido(); setSonido(true); } else { setSonido(false); } }}>{sonido ? <><VolumeX className="mr-2 size-4" /> Silenciar avisos</> : <><Volume2 className="mr-2 size-4" /> Activar sonido</>}</Button>
       </div>
       {avisos.isError && <p className="mt-3 text-sm text-destructive">No se pudieron consultar las notificaciones.</p>}
       <div className="mt-3 space-y-2">
