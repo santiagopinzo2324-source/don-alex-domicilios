@@ -29,6 +29,8 @@ const cuentaQuery = queryOptions({
     if (perfil.error) throw perfil.error;
     if (roles.error) throw roles.error;
     if (direcciones.error) throw direcciones.error;
+    if (pedidos.error) throw pedidos.error;
+    if (notificaciones.error) throw notificaciones.error;
     return {
       email: u.user.email ?? "",
       userId: u.user.id,
