@@ -33,6 +33,7 @@ const ESTADOS: Record<string, string> = {
 
 function PortalDomiciliario() {
   const [codigos, setCodigos] = useState<Record<string, string>>({});
+  const [sonidoActivado, setSonidoActivado] = useState(false);
   const [categoriaAyuda, setCategoriaAyuda] = useState("Problema con un pedido");
   const [mensajeAyuda, setMensajeAyuda] = useState("");
   const [motivosProblema, setMotivosProblema] = useState<Record<string, string>>({});
@@ -106,10 +107,25 @@ function PortalDomiciliario() {
   useEffect(() => {
     const channel = supabase.channel("portal-domi-live")
       .on("postgres_changes", { event: "*", schema: "public", table: "pedidos" }, () => qc.invalidateQueries({ queryKey: ["portal-domiciliario"] }))
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "notificaciones" }, () => qc.invalidateQueries({ queryKey: ["portal-domiciliario"] }))
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "notificaciones" }, () => {
+        void qc.invalidateQueries({ queryKey: ["portal-domiciliario"] });
+        if (sonidoActivado) {
+          try {
+            const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+            const ctx = new AudioCtx();
+            const osc = ctx.createOscillator(); const gain = ctx.createGain();
+            osc.type = "square"; osc.frequency.setValueAtTime(880, ctx.currentTime);
+            gain.gain.setValueAtTime(0.0001, ctx.currentTime); gain.gain.exponentialRampToValueAtTime(0.22, ctx.currentTime + 0.03);
+            gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.45);
+            osc.connect(gain); gain.connect(ctx.destination); osc.start(); osc.stop(ctx.currentTime + 0.46);
+            window.setTimeout(() => void ctx.close(), 700);
+          } catch { /* El navegador puede bloquear audio */ }
+          toast("¡Tienes una nueva notificación de pedido!");
+        }
+      })
       .subscribe();
     return () => { void supabase.removeChannel(channel); };
-  }, [qc]);
+  }, [qc, sonidoActivado]);
   const activo = d?.perfil?.estado === "activo";
   const puedeSolicitarReingreso = ["rechazado", "retirado", "suspendido"].includes(d?.perfil?.estado ?? "");
   const cambiarEstado = (id: string, estado: string) =>
@@ -143,7 +159,7 @@ function PortalDomiciliario() {
             <Resumen icono={Clock3} titulo="Actividad registrada" valor={String(d?.actividad.length ?? 0)+" eventos"} />
           </section>
           <section className="mt-8 rounded-2xl border border-border bg-card p-5">
-            <h2 className="flex items-center gap-2 text-xl font-bold"><Bell className="size-5 text-primary"/> Notificaciones</h2>
+            <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="flex items-center gap-2 text-xl font-bold"><Bell className="size-5 text-primary"/> Notificaciones</h2><Button size="sm" variant={sonidoActivado ? "outline" : "hero"} onClick={() => { setSonidoActivado((v) => !v); if (!sonidoActivado) { try { const Ctx = window.AudioContext || (window as any).webkitAudioContext; const ctx = new Ctx(); const osc=ctx.createOscillator(); const gain=ctx.createGain(); gain.gain.value=0.05; osc.connect(gain); gain.connect(ctx.destination); osc.start(); osc.stop(ctx.currentTime+0.12); window.setTimeout(()=>void ctx.close(),250); } catch {} } }}>{sonidoActivado ? "Desactivar sonido" : "Activar sonido de pedidos"}</Button></div>
             <div className="mt-3 space-y-2">{d?.avisos.map((n) => <article key={n.id} className="rounded-xl bg-muted/50 p-3"><div className="flex justify-between gap-2"><strong className="text-sm">{n.titulo}</strong><span className="text-xs text-muted-foreground">{new Date(n.created_at).toLocaleString("es-CO")}</span></div><p className="mt-1 text-sm text-muted-foreground">{n.cuerpo}</p></article>)}{!d?.avisos.length && <p className="text-sm text-muted-foreground">Todavía no tienes notificaciones.</p>}</div>
           </section>
           <section className="mt-8 rounded-2xl border border-border bg-card p-5">
