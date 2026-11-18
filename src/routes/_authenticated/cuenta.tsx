@@ -14,11 +14,11 @@ import { esquemaCelular, esquemaDireccion } from "@/lib/validacion";
 
 const NOMBRE_ROL = { admin: "Administrador", cliente: "Cliente", domiciliario: "Domiciliario", restaurante: "Negocio" } as const;
 
-const cuentaQuery = queryOptions({
-  queryKey: ["cuenta"],
+const cuentaQuery = (userId: string) => queryOptions({
+  queryKey: ["cuenta", userId],
   queryFn: async () => {
     const { data: u } = await supabase.auth.getUser();
-    if (!u.user) throw new Error("Sin sesión");
+    if (!u.user || u.user.id !== userId) throw new Error("La sesión cambió. Actualiza la página para cargar tu cuenta.");
     const [perfil, roles, direcciones, pedidos, notificaciones, codigos] = await Promise.all([
       supabase.from("profiles").select("*").eq("id", u.user.id).maybeSingle(),
       supabase.from("user_roles").select("role").eq("user_id", u.user.id),
@@ -57,12 +57,17 @@ export const Route = createFileRoute("/_authenticated/cuenta")({
       { name: "twitter:card", content: "summary" },
     ],
   }),
-  loader: ({ context }) => context.queryClient.ensureQueryData(cuentaQuery),
+  loader: async ({ context }) => {
+    const { data } = await supabase.auth.getUser();
+    if (!data.user) throw new Error("Sin sesión");
+    return context.queryClient.ensureQueryData(cuentaQuery(data.user.id));
+  },
   component: Cuenta,
 });
 
 function Cuenta() {
-  const { data } = useSuspenseQuery(cuentaQuery);
+  const loaderData = Route.useLoaderData();
+  const { data } = useSuspenseQuery(cuentaQuery(loaderData.userId));
   const qc = useQueryClient();
   const navigate = useNavigate();
 
