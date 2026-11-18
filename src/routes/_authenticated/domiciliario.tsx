@@ -1,8 +1,8 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Bike, Clock3, MapPin, PackageCheck, Power, Wallet } from "lucide-react";
+import { Bike, Clock3, MapPin, PackageCheck, Power, Wallet, Trophy, Star, Bell, LifeBuoy, History, BarChart3 } from "lucide-react";
 import { toast } from "sonner";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { Encabezado } from "@/components/sitio/Encabezado";
 import { Button } from "@/components/ui/button";
@@ -33,6 +33,8 @@ const ESTADOS: Record<string, string> = {
 
 function PortalDomiciliario() {
   const [codigos, setCodigos] = useState<Record<string, string>>({});
+  const [categoriaAyuda, setCategoriaAyuda] = useState("Problema con un pedido");
+  const [mensajeAyuda, setMensajeAyuda] = useState("");
   const qc = useQueryClient();
   const consulta = useQuery({
     queryKey: ["portal-domiciliario"],
@@ -40,13 +42,18 @@ function PortalDomiciliario() {
     queryFn: async () => {
       const { data: auth } = await supabase.auth.getUser();
       if (!auth.user) throw new Error("Inicia sesión.");
-      const [perfil, disponibles, asignados, ganancias] = await Promise.all([
+      const [perfil, disponibles, asignados, ganancias, historial, ranking, calificaciones, actividad, avisos, ayudas] = await Promise.all([
         supabase.from("domiciliarios").select("estado, disponible, numero").eq("user_id", auth.user.id).maybeSingle(),
         supabase.from("pedidos").select("id, numero, cliente_nombre, cliente_telefono, recogida_direccion, entrega_direccion, entrega_barrio, valor_domicilio, estado, created_at").is("domiciliario_id", null).in("estado", ["listo", "confirmado"]).order("created_at", { ascending: true }).limit(20),
         supabase.from("pedidos").select("id, numero, cliente_nombre, cliente_telefono, recogida_direccion, entrega_direccion, entrega_barrio, valor_domicilio, estado").eq("domiciliario_id", auth.user.id).in("estado", ["asignado", "hacia_recogida", "recogido", "hacia_entrega"]).order("asignado_at", { ascending: false }),
-        supabase.from("pedidos").select("pago_domiciliario, pago_domiciliario_liquidado").eq("domiciliario_id", auth.user.id).in("estado", ["entregado", "finalizado"]),
+        supabase.from("pedidos").select("id, numero, pago_domiciliario, pago_domiciliario_liquidado, estado, created_at, entregado_at").eq("domiciliario_id", auth.user.id).in("estado", ["entregado", "finalizado"]).order("entregado_at", { ascending: false }).limit(100),
+        supabase.from("ranking_domiciliarios").select("domiciliario_id, puesto, entregas, promedio_calificacion").eq("domiciliario_id", auth.user.id).maybeSingle(),
+        supabase.from("calificaciones_domiciliarios").select("id, estrellas, comentario, created_at").eq("domiciliario_id", auth.user.id).order("created_at", { ascending: false }).limit(20),
+        supabase.from("domiciliario_actividad").select("tipo, created_at").eq("domiciliario_id", auth.user.id).order("created_at", { ascending: false }).limit(30),
+        supabase.from("notificaciones").select("id, titulo, cuerpo, leida, created_at").eq("user_id", auth.user.id).order("created_at", { ascending: false }).limit(15),
+        supabase.from("solicitudes_ayuda_domiciliarios").select("id, categoria, descripcion, estado, respuesta, created_at").eq("domiciliario_id", auth.user.id).order("created_at", { ascending: false }).limit(10),
       ]);
-      const error = [perfil, disponibles, asignados, ganancias].find((r) => r.error)?.error;
+      const error = [perfil, disponibles, asignados, ganancias, historial, ranking, calificaciones, actividad, avisos, ayudas].find((r) => r.error)?.error;
       if (error) throw error;
       return {
         perfil: perfil.data ? { ...perfil.data, estado: perfil.data.estado as string } : null,
@@ -54,6 +61,9 @@ function PortalDomiciliario() {
         asignados: asignados.data ?? [],
         total: (ganancias.data ?? []).reduce((sum, p) => sum + (p.pago_domiciliario ?? 0), 0),
         pendiente: (ganancias.data ?? []).filter((p) => !p.pago_domiciliario_liquidado).reduce((sum, p) => sum + (p.pago_domiciliario ?? 0), 0),
+        pagado: (ganancias.data ?? []).filter((p) => p.pago_domiciliario_liquidado).reduce((sum, p) => sum + (p.pago_domiciliario ?? 0), 0),
+        historial: historial.data ?? [], ranking: ranking.data, calificaciones: calificaciones.data ?? [],
+        actividad: actividad.data ?? [], avisos: avisos.data ?? [], ayudas: ayudas.data ?? [],
       };
     },
   });
@@ -68,10 +78,18 @@ function PortalDomiciliario() {
   });
 
   const d = consulta.data;
+  useEffect(() => {
+    const channel = supabase.channel("portal-domi-live")
+      .on("postgres_changes", { event: "*", schema: "public", table: "pedidos" }, () => qc.invalidateQueries({ queryKey: ["portal-domiciliario"] }))
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "notificaciones" }, () => qc.invalidateQueries({ queryKey: ["portal-domiciliario"] }))
+      .subscribe();
+    return () => { void supabase.removeChannel(channel); };
+  }, [qc]);
   const activo = d?.perfil?.estado === "activo";
   const puedeSolicitarReingreso = ["rechazado", "retirado", "suspendido"].includes(d?.perfil?.estado ?? "");
   const cambiarEstado = (id: string, estado: string) =>
     actualizar.mutate({ fn: "domiciliario_actualizar_estado", args: { _pedido_id: id, _estado: estado } });
+  const registrarActividad = (tipo: string) => actualizar.mutate({ fn: "domiciliario_registrar_actividad", args: { _tipo: tipo } });
   const confirmarRecogida = (id: string) =>
     actualizar.mutate({ fn: "domiciliario_confirmar_recogida", args: { _pedido_id: id, _codigo: codigos[id] ?? "" } });
 
@@ -82,16 +100,43 @@ function PortalDomiciliario() {
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div><p className="text-sm font-semibold text-brand-vivid">Zona de trabajo</p><h1 className="mt-1 font-display text-3xl font-bold text-foreground">Portal del domiciliario</h1><p className="mt-2 text-sm text-muted-foreground">Tus pedidos, entregas y ganancias en un solo lugar.</p>
             {d?.perfil?.numero != null && <p className="mt-2 inline-flex rounded-full bg-brand-lavender px-3 py-1 text-sm font-bold text-primary">Tu código: DOM-{String(d.perfil.numero).padStart(3, "0")}</p>}</div>
-          {activo && <Button variant={d?.perfil?.disponible ? "outline" : "hero"} disabled={actualizar.isPending} onClick={() => actualizar.mutate({ fn: "domiciliario_disponibilidad", args: { _disponible: !d?.perfil?.disponible } })}><Power className="mr-2 size-4" />{d?.perfil?.disponible ? "Pausar disponibilidad" : "Estoy disponible"}</Button>}
+          {activo && <Button variant={d?.perfil?.disponible ? "outline" : "hero"} disabled={actualizar.isPending} onClick={() => { const siguiente = !d?.perfil?.disponible; actualizar.mutate({ fn: "domiciliario_disponibilidad", args: { _disponible: siguiente } }); registrarActividad(siguiente ? "reanudar" : "pausa"); }}><Power className="mr-2 size-4" />{d?.perfil?.disponible ? "Pausar disponibilidad" : "Estoy disponible"}</Button>}
         </div>
         {consulta.isLoading && <p className="mt-8 text-sm text-muted-foreground">Cargando tu información…</p>}
         {consulta.isError && <p role="alert" className="mt-6 rounded-xl bg-card p-4 text-sm text-destructive">No se pudo cargar el portal. Verifica que la base de datos esté actualizada y que tu cuenta esté registrada.</p>}
         {d?.perfil?.estado !== "activo" && <section className="mt-8 rounded-2xl border border-brand-lilac bg-card p-6"><Clock3 className="size-8 text-primary" /><h2 className="mt-3 text-xl font-bold text-foreground">{d?.perfil?.estado === "pendiente" ? "Solicitud en revisión" : d?.perfil?.estado === "rechazado" ? "Solicitud rechazada" : d?.perfil?.estado === "retirado" || d?.perfil?.estado === "suspendido" ? "Cuenta deshabilitada" : "Solicitud de domiciliario"}</h2><p className="mt-2 text-sm text-muted-foreground">{d?.perfil?.estado === "pendiente" ? "Tu solicitud está pendiente de revisión por la administración." : puedeSolicitarReingreso ? "Puedes enviar una nueva solicitud desde esta misma cuenta. La administración revisará nuevamente tu información antes de habilitarte." : "Tu cuenta todavía no está aprobada. Cuando la administración revise tus datos y confirme los requisitos aplicables, podrás activar tu disponibilidad y recibir pedidos."}</p><p className="mt-3 text-xs text-muted-foreground">Estado actual: {d?.perfil?.estado ?? "No hay solicitud registrada"}</p>{puedeSolicitarReingreso && <Button className="mt-4" disabled={actualizar.isPending} onClick={() => actualizar.mutate({ fn: "domiciliario_solicitar_reingreso", args: {} })}>Solicitar nueva revisión</Button>}</section>}
         {activo && <>
-          <section className="mt-8 grid gap-4 sm:grid-cols-3">
+          <section className="mt-8 grid gap-4 sm:grid-cols-4">
             <Resumen icono={Wallet} titulo="Ganancias registradas" valor={formatearCOP(d?.total ?? 0)} />
             <Resumen icono={Wallet} titulo="Pendiente de liquidar" valor={formatearCOP(d?.pendiente ?? 0)} />
-            <Resumen icono={PackageCheck} titulo="Pedidos en curso" valor={String(d?.asignados.length ?? 0)} />
+            <Resumen icono={PackageCheck} titulo="Pedidos en curso" valor={String(d?.asignados.length ?? 0)} /><Resumen icono={Wallet} titulo="Ya liquidado" valor={formatearCOP(d?.pagado ?? 0)} />
+          </section>
+          <section className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <Resumen icono={Trophy} titulo="Tu puesto en el equipo" valor={d?.ranking?.puesto ? "#"+d.ranking.puesto : "—"} />
+            <Resumen icono={BarChart3} titulo="Entregas históricas" valor={String(d?.historial.length ?? 0)} />
+            <Resumen icono={Star} titulo="Promedio de estrellas" valor={d?.ranking?.promedio_calificacion ? Number(d.ranking.promedio_calificacion).toFixed(1)+"/5" : "Sin calificaciones"} />
+            <Resumen icono={Clock3} titulo="Actividad registrada" valor={String(d?.actividad.length ?? 0)+" eventos"} />
+          </section>
+          <section className="mt-8 rounded-2xl border border-border bg-card p-5">
+            <h2 className="flex items-center gap-2 text-xl font-bold"><Bell className="size-5 text-primary"/> Notificaciones</h2>
+            <div className="mt-3 space-y-2">{d?.avisos.map((n) => <article key={n.id} className="rounded-xl bg-muted/50 p-3"><div className="flex justify-between gap-2"><strong className="text-sm">{n.titulo}</strong><span className="text-xs text-muted-foreground">{new Date(n.created_at).toLocaleString("es-CO")}</span></div><p className="mt-1 text-sm text-muted-foreground">{n.cuerpo}</p></article>)}{!d?.avisos.length && <p className="text-sm text-muted-foreground">Todavía no tienes notificaciones.</p>}</div>
+          </section>
+          <section className="mt-8 rounded-2xl border border-border bg-card p-5">
+            <h2 className="flex items-center gap-2 text-xl font-bold"><History className="size-5 text-primary"/> Historial de entregas</h2>
+            <div className="mt-3 space-y-2">{d?.historial.map((p) => <article key={p.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border p-3"><div><strong>Pedido #{p.numero}</strong><p className="text-xs text-muted-foreground">{new Date(p.entregado_at ?? p.created_at).toLocaleString("es-CO")} · {p.estado}</p></div><strong>{formatearCOP(p.pago_domiciliario ?? 0)}</strong></article>)}{!d?.historial.length && <p className="text-sm text-muted-foreground">Aún no tienes entregas finalizadas.</p>}</div>
+          </section>
+          <section className="mt-8 rounded-2xl border border-border bg-card p-5">
+            <h2 className="flex items-center gap-2 text-xl font-bold"><Star className="size-5 text-primary"/> Tus calificaciones</h2>
+            <div className="mt-3 space-y-2">{d?.calificaciones.map((r) => <article key={r.id} className="rounded-xl bg-muted/50 p-3"><strong>{"★".repeat(r.estrellas)}{"☆".repeat(5-r.estrellas)}</strong><p className="mt-1 text-sm">{r.comentario || "Sin comentario"}</p><p className="text-xs text-muted-foreground">{new Date(r.created_at).toLocaleDateString("es-CO")} · Cliente anónimo</p></article>)}{!d?.calificaciones.length && <p className="text-sm text-muted-foreground">Todavía no tienes calificaciones.</p>}</div>
+          </section>
+          <section className="mt-8 rounded-2xl border border-border bg-card p-5">
+            <h2 className="flex items-center gap-2 text-xl font-bold"><LifeBuoy className="size-5 text-primary"/> Ayuda al domiciliario</h2>
+            <div className="mt-3 grid gap-3 sm:grid-cols-[220px_1fr_auto]">
+              <select className="rounded-xl border border-input bg-background px-3 py-2 text-sm" value={categoriaAyuda} onChange={(e)=>setCategoriaAyuda(e.target.value)}><option>Problema con un pedido</option><option>Problema con un cliente</option><option>Problema con un establecimiento</option><option>Problema con un pago</option><option>Otro asunto</option></select>
+              <Input placeholder="Cuéntanos qué ocurrió" value={mensajeAyuda} onChange={(e)=>setMensajeAyuda(e.target.value)} />
+              <Button disabled={!mensajeAyuda.trim() || actualizar.isPending} onClick={async()=>{const {data:userData}=await supabase.auth.getUser(); if(!userData.user)return; const {error}=await supabase.from("solicitudes_ayuda_domiciliarios").insert({domiciliario_id:userData.user.id,categoria:categoriaAyuda,descripcion:mensajeAyuda.trim()}); if(error){toast.error(error.message);return;} setMensajeAyuda(""); toast.success("Tu reporte fue enviado."); void qc.invalidateQueries({queryKey:["portal-domiciliario"]});}}>Enviar reporte</Button>
+            </div>
+            <div className="mt-3 space-y-2">{d?.ayudas.map((a)=><article key={a.id} className="rounded-xl bg-muted/50 p-3 text-sm"><div className="flex justify-between"><strong>{a.categoria}</strong><span>{a.estado}</span></div><p>{a.descripcion}</p>{a.respuesta&&<p className="mt-1 text-primary">Respuesta: {a.respuesta}</p>}</article>)}</div>
           </section>
           <section className="mt-8"><h2 className="text-xl font-bold text-foreground">Pedidos disponibles</h2><p className="mt-1 text-sm text-muted-foreground">La lista se actualiza automáticamente. Solo puedes aceptar un pedido que siga libre.</p>
             <div className="mt-4 grid gap-4 md:grid-cols-2">
