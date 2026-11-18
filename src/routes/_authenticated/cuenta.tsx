@@ -1,6 +1,6 @@
 import { queryOptions, useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Bike, Home, LogOut, MapPin, Star, Store, Trash2, UserRound } from "lucide-react";
+import { Bike, Clock3, Home, LogOut, MapPin, MessageCircle, Package, RefreshCw, Star, Store, Trash2, UserRound } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
 
@@ -19,10 +19,12 @@ const cuentaQuery = queryOptions({
   queryFn: async () => {
     const { data: u } = await supabase.auth.getUser();
     if (!u.user) throw new Error("Sin sesión");
-    const [perfil, roles, direcciones] = await Promise.all([
+    const [perfil, roles, direcciones, pedidos, notificaciones] = await Promise.all([
       supabase.from("profiles").select("*").eq("id", u.user.id).maybeSingle(),
       supabase.from("user_roles").select("role").eq("user_id", u.user.id),
       supabase.from("direcciones").select("*").eq("cliente_id", u.user.id).order("es_principal", { ascending: false }).order("created_at"),
+      supabase.from("pedidos").select("id, numero, tipo_servicio, estado, cliente_nombre, cliente_telefono, establecimiento_nombre, entrega_direccion, entrega_barrio, descripcion, observaciones, subtotal_productos, valor_domicilio, total, metodo_pago, created_at, updated_at").eq("cliente_id", u.user.id).order("created_at", { ascending: false }).limit(30),
+      supabase.from("notificaciones").select("id, titulo, cuerpo, leida, created_at, pedido_id").eq("user_id", u.user.id).order("created_at", { ascending: false }).limit(20),
     ]);
     if (perfil.error) throw perfil.error;
     if (roles.error) throw roles.error;
@@ -33,6 +35,8 @@ const cuentaQuery = queryOptions({
       perfil: perfil.data,
       roles: (roles.data ?? []).map((r) => r.role),
       direcciones: direcciones.data ?? [],
+      pedidos: pedidos.data ?? [],
+      notificaciones: notificaciones.data ?? [],
     };
   },
 });
@@ -99,8 +103,105 @@ function Cuenta() {
           <FormPerfil userId={data.userId} email={data.email} nombre={data.perfil?.nombre_completo ?? ""} telefono={data.perfil?.telefono ?? ""} />
           <Direcciones userId={data.userId} direcciones={data.direcciones} onCambio={() => qc.invalidateQueries({ queryKey: ["cuenta"] })} />
         </div>
+        <div className="mt-6 space-y-6">
+          <NotificacionesCliente notificaciones={data.notificaciones} onCambio={() => qc.invalidateQueries({ queryKey: ["cuenta"] })} />
+          <PedidosCliente pedidos={data.pedidos} />
+        </div>
       </main>
     </div>
+  );
+}
+
+
+type PedidoCliente = {
+  id: string; numero: number; tipo_servicio: string; estado: string; cliente_nombre: string;
+  establecimiento_nombre: string | null; entrega_direccion: string; entrega_barrio: string | null;
+  descripcion: string | null; observaciones: string | null; subtotal_productos: number;
+  valor_domicilio: number | null; total: number; metodo_pago: string | null; created_at: string;
+};
+type NotificacionCliente = { id: string; titulo: string; cuerpo: string | null; leida: boolean; created_at: string; pedido_id: string | null };
+
+const ESTADOS_PEDIDO: Record<string, string> = {
+  recibido: "Pedido recibido", confirmado: "Confirmado", en_preparacion: "En preparación",
+  listo: "Listo para recoger", asignado: "Domiciliario asignado", hacia_recogida: "En camino al establecimiento",
+  recogido: "Pedido recogido", hacia_entrega: "En camino a tu dirección", entregado: "Entregado",
+  finalizado: "Finalizado", cancelado: "Cancelado",
+};
+const dinero = (valor: number | null) => new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(valor ?? 0);
+
+function PedidosCliente({ pedidos }: { pedidos: PedidoCliente[] }) {
+  const activos = pedidos.filter((p) => !["finalizado", "cancelado"].includes(p.estado));
+  return (
+    <section className="rounded-3xl border border-border bg-card p-6 shadow-soft">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div><h2 className="flex items-center gap-2 text-lg font-bold text-foreground"><Package className="size-5 text-primary" /> Mis pedidos</h2>
+          <p className="mt-1 text-sm text-muted-foreground">Consulta el estado y revisa tus domicilios anteriores.</p></div>
+        <Badge className="rounded-full bg-brand-lavender text-brand-deep">{activos.length} activos</Badge>
+      </div>
+      {pedidos.length === 0 ? (
+        <div className="mt-5 rounded-2xl bg-brand-mist p-5 text-sm text-muted-foreground">Todavía no tienes pedidos asociados a esta cuenta. Cuando realices uno con tu sesión iniciada, aparecerá aquí.</div>
+      ) : (
+        <div className="mt-5 space-y-4">
+          {pedidos.map((p) => {
+            const texto = [
+              "Hola, quiero consultar o repetir el pedido #" + p.numero + ".",
+              p.descripcion ? "Detalle: " + p.descripcion : "",
+              "Dirección: " + p.entrega_direccion,
+            ].filter(Boolean).join(" ");
+            const repetir = "https://wa.me/573118199006?text=" + encodeURIComponent(texto);
+            return (
+              <article key={p.id} className="rounded-2xl border border-border p-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div><p className="font-bold text-foreground">Pedido #{p.numero}</p>
+                    <p className="text-xs text-muted-foreground">{new Date(p.created_at).toLocaleString("es-CO", { dateStyle: "medium", timeStyle: "short" })}</p></div>
+                  <Badge className="rounded-full bg-brand-lavender text-brand-deep">{ESTADOS_PEDIDO[p.estado] ?? p.estado}</Badge>
+                </div>
+                <div className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
+                  <p><span className="text-muted-foreground">Servicio:</span> {p.tipo_servicio}</p>
+                  {p.establecimiento_nombre && <p><span className="text-muted-foreground">Negocio:</span> {p.establecimiento_nombre}</p>}
+                  <p className="sm:col-span-2"><span className="text-muted-foreground">Entrega:</span> {p.entrega_direccion}{p.entrega_barrio ? " · " + p.entrega_barrio : ""}</p>
+                  {p.descripcion && <p className="sm:col-span-2"><span className="text-muted-foreground">Detalle:</span> {p.descripcion}</p>}
+                  <p className="font-semibold sm:col-span-2">Total: {dinero(p.total)}</p>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <a href={repetir} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl border border-border px-3 py-2 text-sm font-medium text-foreground hover:bg-brand-mist"><RefreshCw className="size-4" /> Consultar o volver a pedir</a>
+                  <a href="https://wa.me/573118199006" target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl bg-brand-lavender px-3 py-2 text-sm font-medium text-brand-deep"><MessageCircle className="size-4" /> Ayuda</a>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function NotificacionesCliente({ notificaciones, onCambio }: { notificaciones: NotificacionCliente[]; onCambio: () => void }) {
+  const marcar = useMutation({
+    mutationFn: async () => {
+      const { data: u } = await supabase.auth.getUser();
+      if (!u.user) throw new Error("Sesión no disponible");
+      const { error } = await supabase.from("notificaciones").update({ leida: true }).eq("user_id", u.user.id).eq("leida", false);
+      if (error) throw error;
+    },
+    onSuccess: onCambio,
+    onError: () => toast.error("No se pudieron actualizar las notificaciones"),
+  });
+  if (notificaciones.length === 0) return null;
+  return (
+    <section className="rounded-3xl border border-border bg-card p-6 shadow-soft">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="flex items-center gap-2 text-lg font-bold text-foreground"><Clock3 className="size-5 text-primary" /> Avisos de tu cuenta</h2>
+        {notificaciones.some((n) => !n.leida) && <Button size="sm" variant="outline" onClick={() => marcar.mutate()} disabled={marcar.isPending}>Marcar todo como leído</Button>}
+      </div>
+      <ul className="mt-4 space-y-3">
+        {notificaciones.map((n) => <li key={n.id} className={`rounded-2xl p-4 ${n.leida ? "bg-brand-mist" : "border border-brand-lilac bg-brand-lavender/40"}`}>
+          <div className="flex items-start justify-between gap-3"><p className="font-semibold text-foreground">{n.titulo}</p>{!n.leida && <Badge className="rounded-full bg-primary">Nuevo</Badge>}</div>
+          {n.cuerpo && <p className="mt-1 text-sm text-muted-foreground">{n.cuerpo}</p>}
+          <p className="mt-2 text-xs text-muted-foreground">{new Date(n.created_at).toLocaleString("es-CO", { dateStyle: "medium", timeStyle: "short" })}</p>
+        </li>)}
+      </ul>
+    </section>
   );
 }
 
