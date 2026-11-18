@@ -51,7 +51,7 @@ function PortalDomiciliario() {
       if (!auth.user) throw new Error("Inicia sesión.");
       const [perfil, disponibles, asignados, ganancias, ranking, calificaciones, actividad, avisos, ayudas] = await Promise.all([
         supabase.from("domiciliarios").select("estado, disponible, numero").eq("user_id", auth.user.id).maybeSingle(),
-        supabase.from("pedidos").select("id, numero, cliente_nombre, cliente_telefono, recogida_direccion, entrega_direccion, entrega_barrio, valor_domicilio, estado, created_at").is("domiciliario_id", null).in("estado", ["listo", "confirmado"]).order("created_at", { ascending: true }).limit(20),
+        (supabase as any).from("pedido_ofertas_domiciliarios").select("pedido_id, ofrecido_at").eq("domiciliario_id", auth.user.id).eq("estado", "ofrecido").order("ofrecido_at", { ascending: true }).limit(1),
         supabase.from("pedidos").select("id, numero, cliente_nombre, cliente_telefono, recogida_direccion, entrega_direccion, entrega_barrio, valor_domicilio, estado").eq("domiciliario_id", auth.user.id).in("estado", ["asignado", "hacia_recogida", "recogido", "hacia_entrega"]).order("asignado_at", { ascending: false }),
         supabase.from("pedidos").select("id, numero, pago_domiciliario, pago_domiciliario_liquidado, estado, created_at, entregado_at").eq("domiciliario_id", auth.user.id).in("estado", ["entregado", "finalizado"]).order("entregado_at", { ascending: false }).limit(100),
         (supabase as any).from("ranking_domiciliarios").select("domiciliario_id, puesto, entregas, promedio_calificacion").eq("domiciliario_id", auth.user.id).maybeSingle(),
@@ -60,11 +60,13 @@ function PortalDomiciliario() {
         supabase.from("notificaciones").select("id, titulo, cuerpo, leida, created_at").eq("user_id", auth.user.id).order("created_at", { ascending: false }).limit(15),
         (supabase as any).from("solicitudes_ayuda_domiciliarios").select("id, categoria, descripcion, estado, respuesta, created_at").eq("domiciliario_id", auth.user.id).order("created_at", { ascending: false }).limit(10),
       ]);
-      const error = [perfil, disponibles, asignados, ganancias, ranking, calificaciones, actividad, avisos, ayudas].find((r) => r.error)?.error;
+      const ofertaIds = (disponibles.data ?? []).map((o: { pedido_id: string }) => o.pedido_id);
+      const pedidosOferta = ofertaIds.length ? await supabase.from("pedidos").select("id, numero, cliente_nombre, cliente_telefono, recogida_direccion, entrega_direccion, entrega_barrio, valor_domicilio, estado, created_at").in("id", ofertaIds) : { data: [], error: null };
+      const error = [perfil, disponibles, asignados, ganancias, ranking, calificaciones, actividad, avisos, ayudas, pedidosOferta].find((r) => r.error)?.error;
       if (error) throw error;
       return {
         perfil: perfil.data ? { ...perfil.data, estado: perfil.data.estado as string } : null,
-        disponibles: disponibles.data ?? [],
+        disponibles: pedidosOferta.data ?? [],
         asignados: asignados.data ?? [],
         total: (ganancias.data ?? []).reduce((sum, p) => sum + (p.pago_domiciliario ?? 0), 0),
         pendiente: (ganancias.data ?? []).filter((p) => !p.pago_domiciliario_liquidado).reduce((sum, p) => sum + (p.pago_domiciliario ?? 0), 0),
@@ -163,7 +165,7 @@ function PortalDomiciliario() {
           </section>
           <section className="mt-8"><h2 className="text-xl font-bold text-foreground">Pedidos disponibles</h2><p className="mt-1 text-sm text-muted-foreground">La lista se actualiza automáticamente. Solo puedes aceptar un pedido que siga libre.</p>
             <div className="mt-4 grid gap-4 md:grid-cols-2">
-              {d?.disponibles.map((p) => <article key={p.id} className="rounded-2xl border border-border bg-card p-5 shadow-soft"><div className="flex justify-between gap-3"><strong>Pedido #{p.numero}</strong><strong>{formatearCOP(p.valor_domicilio ?? 0)}</strong></div><p className="mt-3 text-sm text-muted-foreground">Recogida: {p.recogida_direccion || "Por confirmar"}</p><p className="mt-1 flex items-start gap-1 text-sm text-muted-foreground"><MapPin className="mt-0.5 size-4 shrink-0" />Entrega: {p.entrega_direccion}{p.entrega_barrio ? " · " + p.entrega_barrio : ""}</p><a href={enlaceMapa(p.entrega_direccion)} target="_blank" rel="noreferrer" className="mt-3 inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline"><MapPin className="size-4" /> Ver destino en el mapa</a><Button className="mt-4 w-full" disabled={actualizar.isPending || !d.perfil?.disponible} onClick={() => actualizar.mutate({ fn: "domiciliario_aceptar_pedido", args: { _pedido_id: p.id } })}>Aceptar pedido</Button>{!d.perfil?.disponible && <p className="mt-2 text-xs text-muted-foreground">Activa tu disponibilidad para aceptar pedidos.</p>}</article>)}
+              {d?.disponibles.map((p) => <article key={p.id} className="rounded-2xl border border-border bg-card p-5 shadow-soft"><div className="flex justify-between gap-3"><strong>Pedido #{p.numero}</strong><strong>{formatearCOP(p.valor_domicilio ?? 0)}</strong></div><p className="mt-3 text-sm text-muted-foreground">Recogida: {p.recogida_direccion || "Por confirmar"}</p><p className="mt-1 flex items-start gap-1 text-sm text-muted-foreground"><MapPin className="mt-0.5 size-4 shrink-0" />Entrega: {p.entrega_direccion}{p.entrega_barrio ? " · " + p.entrega_barrio : ""}</p><a href={enlaceMapa(p.entrega_direccion)} target="_blank" rel="noreferrer" className="mt-3 inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline"><MapPin className="size-4" /> Ver destino en el mapa</a><div className="mt-4 grid grid-cols-2 gap-2"><Button disabled={actualizar.isPending || !d.perfil?.disponible} onClick={() => actualizar.mutate({ fn: "domiciliario_aceptar_oferta", args: { _pedido_id: p.id } })}>Aceptar pedido</Button><Button variant="outline" disabled={actualizar.isPending} onClick={() => actualizar.mutate({ fn: "domiciliario_rechazar_oferta", args: { _pedido_id: p.id } })}>Rechazar</Button></div>{!d.perfil?.disponible && <p className="mt-2 text-xs text-muted-foreground">Activa tu disponibilidad para recibir ofertas.</p>}</article>)}
               {d?.disponibles.length === 0 && <p className="rounded-2xl bg-card p-5 text-sm text-muted-foreground">En este momento no hay pedidos disponibles.</p>}
             </div>
           </section>
