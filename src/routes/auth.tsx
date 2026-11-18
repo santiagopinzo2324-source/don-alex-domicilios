@@ -47,6 +47,7 @@ export const Route = createFileRoute("/auth")({
 function PaginaAuth() {
   const search = Route.useSearch();
   const navigate = useNavigate();
+  const accesoDomiciliario = search.redirect === "/domiciliario";
   const [modo, setModo] = useState<Modo>(search.modo ?? "ingresar");
   const destino = destinoSeguro(search.redirect);
 
@@ -79,8 +80,8 @@ function PaginaAuth() {
         <div className="w-full max-w-md">
           <Link to="/" className="mb-8 inline-block lg:hidden"><Logo tamano={44} /></Link>
           <div className="rounded-3xl border border-border bg-card p-7 shadow-soft sm:p-9">
-            {modo === "ingresar" && <FormIngreso onModo={setModo} />}
-            {modo === "registro" && <FormRegistro onModo={setModo} />}
+            {modo === "ingresar" && <FormIngreso onModo={setModo} accesoDomiciliario={accesoDomiciliario} />}
+            {modo === "registro" && <FormRegistro onModo={setModo} accesoDomiciliario={accesoDomiciliario} />}
             {modo === "recuperar" && <FormRecuperar onModo={setModo} />}
           </div>
         </div>
@@ -107,7 +108,7 @@ function Separador() {
   );
 }
 
-function FormIngreso({ onModo }: { onModo: (m: Modo) => void }) {
+function FormIngreso({ onModo, accesoDomiciliario }: { onModo: (m: Modo) => void; accesoDomiciliario: boolean }) {
   const [errores, setErrores] = useState<Record<string, string>>({});
   const [cargando, setCargando] = useState(false);
 
@@ -128,8 +129,8 @@ function FormIngreso({ onModo }: { onModo: (m: Modo) => void }) {
 
   return (
     <>
-      <h1 className="font-display text-2xl font-bold text-foreground">Bienvenido de nuevo</h1>
-      <p className="mt-1 text-sm text-muted-foreground">Ingresa a tu cuenta de Don Alex.</p>
+      <h1 className="font-display text-2xl font-bold text-foreground">{accesoDomiciliario ? "Acceso para domiciliarios" : "Bienvenido de nuevo"}</h1>
+      <p className="mt-1 text-sm text-muted-foreground">{accesoDomiciliario ? "Ingresa a tu cuenta de domiciliario para entrar a tu módulo de trabajo." : "Ingresa a tu cuenta de Don Alex."}</p>
       <div className="mt-5"><BotonGoogle /></div>
       <Separador />
       <form onSubmit={enviar} className="space-y-4" noValidate>
@@ -138,7 +139,7 @@ function FormIngreso({ onModo }: { onModo: (m: Modo) => void }) {
         <button type="button" onClick={() => onModo("recuperar")} className="text-sm font-semibold text-primary hover:underline">¿Olvidaste tu contraseña?</button>
         <Button type="submit" variant="hero" size="lg" className="w-full" disabled={cargando}>{cargando ? "Ingresando…" : "Ingresar"}</Button>
       </form>
-      <p className="mt-6 text-center text-sm text-muted-foreground">¿No tienes cuenta?{" "}
+      <p className="mt-6 text-center text-sm text-muted-foreground">{accesoDomiciliario ? "¿Aún no tienes cuenta de domiciliario? " : "¿No tienes cuenta? "}
         <button onClick={() => onModo("registro")} className="font-semibold text-primary hover:underline">Crear cuenta</button>
       </p>
     </>
@@ -148,7 +149,6 @@ function FormIngreso({ onModo }: { onModo: (m: Modo) => void }) {
 const TIPOS = [
   { valor: "cliente", texto: "Cliente", icono: User },
   { valor: "restaurante", texto: "Negocio", icono: Store },
-  { valor: "domiciliario", texto: "Domiciliario", icono: Bike },
 ] as const;
 
 function searchRedirect() {
@@ -157,8 +157,9 @@ function searchRedirect() {
   return redirect ? `?redirect=${encodeURIComponent(redirect)}` : "";
 }
 
-function FormRegistro({ onModo }: { onModo: (m: Modo) => void }) {
+function FormRegistro({ onModo, accesoDomiciliario }: { onModo: (m: Modo) => void; accesoDomiciliario: boolean }) {
   const [tipo, setTipo] = useState<(typeof TIPOS)[number]["valor"]>("cliente");
+  const tipoRegistro = accesoDomiciliario ? "domiciliario" as const : tipo;
   const [errores, setErrores] = useState<Record<string, string>>({});
   const [cargando, setCargando] = useState(false);
   const [enviadoA, setEnviadoA] = useState<string | null>(null);
@@ -168,8 +169,8 @@ function FormRegistro({ onModo }: { onModo: (m: Modo) => void }) {
     const bruto = Object.fromEntries(new FormData(e.currentTarget));
     setErrores({});
     setCargando(true);
-    const datos = { ...bruto, tipo_cuenta: tipo };
-    const r = tipo === "cliente"
+    const datos = { ...bruto, tipo_cuenta: tipoRegistro };
+    const r = tipoRegistro === "cliente"
       ? esquemaRegistroCliente.safeParse(datos)
       : esquemaRegistro.safeParse(datos);
     if (!r.success) {
@@ -188,7 +189,7 @@ function FormRegistro({ onModo }: { onModo: (m: Modo) => void }) {
       return;
     }
     if (data.session) {
-      toast.success(tipo === "cliente" ? "¡Tu cuenta está lista!" : "¡Solicitud registrada! Queda pendiente de aprobación.");
+      toast.success(tipoRegistro === "cliente" ? "¡Tu cuenta está lista!" : tipoRegistro === "domiciliario" ? "¡Postulación enviada! Queda pendiente de aprobación." : "¡Solicitud registrada! Queda pendiente de aprobación.");
       return;
     }
     setEnviadoA(email);
@@ -205,9 +206,9 @@ function FormRegistro({ onModo }: { onModo: (m: Modo) => void }) {
 
   return (
     <>
-      <h1 className="font-display text-2xl font-bold text-foreground">Crea tu cuenta</h1>
-      <p className="mt-1 text-sm text-muted-foreground">¿Cómo vas a usar Don Alex?</p>
-      <div className="mt-5 grid grid-cols-3 gap-2" role="radiogroup" aria-label="Tipo de cuenta">
+      <h1 className="font-display text-2xl font-bold text-foreground">{accesoDomiciliario ? "Crear cuenta de domiciliario" : "Crea tu cuenta"}</h1>
+      <p className="mt-1 text-sm text-muted-foreground">{accesoDomiciliario ? "Registra tus datos para enviar tu postulación a Don Alex." : "¿Cómo vas a usar Don Alex?"}</p>
+      {!accesoDomiciliario && <div className="mt-5 grid grid-cols-2 gap-2" role="radiogroup" aria-label="Tipo de cuenta">
         {TIPOS.map(({ valor, texto, icono: Icono }) => (
           <button key={valor} type="button" role="radio" aria-checked={tipo === valor} onClick={() => setTipo(valor)}
             className={cn("flex flex-col items-center gap-1.5 rounded-2xl border px-2 py-3 text-xs font-semibold transition-all",
@@ -215,14 +216,14 @@ function FormRegistro({ onModo }: { onModo: (m: Modo) => void }) {
             <Icono className="size-5" /> {texto}
           </button>
         ))}
-      </div>
-      {tipo !== "cliente" && <p className="mt-3 rounded-xl bg-brand-mist p-3 text-xs text-muted-foreground">
-        {tipo === "domiciliario" ? "Tu postulación como domiciliario se enviará a administración para revisión. Después podrás consultar el estado desde el módulo de domiciliarios." : "Tu solicitud de negocio será revisada por un administrador antes de habilitar sus funciones."}
+      </div>}
+      {tipoRegistro !== "cliente" && <p className="mt-3 rounded-xl bg-brand-mist p-3 text-xs text-muted-foreground">
+        {tipoRegistro === "domiciliario" ? "Tu postulación como domiciliario se enviará a administración para revisión. Después podrás consultar su estado desde este módulo." : "Tu solicitud de negocio será revisada por un administrador antes de habilitar sus funciones."}
       </p>}
-      {tipo === "cliente" && <><div className="mt-5"><BotonGoogle /></div><Separador /></>}
-      <form onSubmit={enviar} className={cn("space-y-4", tipo !== "cliente" && "mt-5")} noValidate>
+      {tipoRegistro === "cliente" && <><div className="mt-5"><BotonGoogle /></div><Separador /></>}
+      <form onSubmit={enviar} className={cn("space-y-4", tipoRegistro !== "cliente" && "mt-5")} noValidate>
         <Campo id="nombre_completo" label="Nombre completo" autoComplete="name" error={errores["nombre_completo"]} />
-        {tipo !== "cliente" && <Campo id="telefono" label="Número de WhatsApp" type="tel" inputMode="tel" placeholder="311 819 9006" autoComplete="tel" error={errores["telefono"]} />}
+        {tipoRegistro !== "cliente" && <Campo id="telefono" label="Número de WhatsApp" type="tel" inputMode="tel" placeholder="311 819 9006" autoComplete="tel" error={errores["telefono"]} />}
         <Campo id="email" label="Correo electrónico" type="email" autoComplete="email" error={errores["email"]} />
         <Campo id="password" label="Contraseña" type="password" autoComplete="new-password" error={errores["password"]} />
         <Button type="submit" variant="hero" size="lg" className="w-full" disabled={cargando}>{cargando ? "Creando cuenta…" : "Crear cuenta"}</Button>
