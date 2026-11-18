@@ -1,7 +1,7 @@
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Activity, Bike, ClipboardList, Clock3, DollarSign, PackageCheck, LogOut, RefreshCw, Store, Users, MapPin, Plus, Save, Trash2 } from "lucide-react";
+import { Activity, Bike, ClipboardList, Clock3, DollarSign, PackageCheck, LogOut, RefreshCw, Store, Users, MapPin, Plus, Save, Trash2, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { consultaSolicitudesKey, SolicitudesDomiciliarios } from "@/components/admin/SolicitudesDomiciliarios";
@@ -190,7 +190,7 @@ function Admin() {
           </article>
         </section>
 
-        <SolicitudesDomiciliarios />
+        <SolicitudesDomiciliarios />\n        <PedidosPorConfirmar />
         <section className="mt-8 rounded-2xl border border-border bg-card p-6 shadow-soft">
           <div className="flex items-center gap-3"><span className="flex size-11 items-center justify-center rounded-xl bg-brand-lavender text-primary"><MapPin className="size-5" /></span><div><h2 className="text-xl font-bold text-foreground">Cobertura y horarios por sector</h2><p className="mt-1 text-sm text-muted-foreground">Administra las reglas y avisos. Los polígonos geográficos aún deben delimitarse con datos verificados.</p></div></div>
           {reglas.isError && <p role="alert" className="mt-4 text-sm text-destructive">No se pudieron cargar las reglas.</p>}
