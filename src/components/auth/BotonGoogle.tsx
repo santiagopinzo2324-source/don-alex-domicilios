@@ -8,7 +8,11 @@ export function BotonGoogle() {
   const [cargando, setCargando] = useState(false);
   async function ingresar() {
     setCargando(true);
-    const res = await lovable.auth.signInWithOAuth("google", { redirect_uri: `${window.location.origin}/auth` });
+    const parametros = new URLSearchParams(window.location.search);
+    const destino = parametros.get("redirect");
+    const retorno = new URL("/auth", window.location.origin);
+    if (destino) retorno.searchParams.set("redirect", destino);
+    const res = await lovable.auth.signInWithOAuth("google", { redirect_uri: retorno.toString() });
     if (res.error) {
       toast.error("No se pudo continuar con Google. Intenta de nuevo.");
       setCargando(false);
