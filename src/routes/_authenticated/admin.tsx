@@ -108,6 +108,41 @@ function PedidosPorConfirmar() {
   );
 }
 
+
+function OperacionesDespacho() {
+  const qc = useQueryClient();
+  const datos = useQuery({
+    queryKey: ["admin-despacho-operativo"], refetchInterval: 10000,
+    queryFn: async () => {
+      const [domis, pedidos] = await Promise.all([
+        (supabase as any).from("domiciliarios").select("user_id, numero, disponible").eq("estado", "activo").eq("disponible", true).order("created_at", { ascending: true }),
+        supabase.from("pedidos").select("id, numero, cliente_nombre, entrega_direccion, estado").is("domiciliario_id", null).in("estado", ["confirmado", "listo"]).order("created_at", { ascending: true }),
+      ]);
+      if (domis.error) throw domis.error;
+      if (pedidos.error) throw pedidos.error;
+      const ids = (domis.data ?? []).map((d: { user_id: string }) => d.user_id);
+      const perfiles = ids.length ? await supabase.from("profiles").select("id, nombre_completo").in("id", ids) : { data: [], error: null };
+      if (perfiles.error) throw perfiles.error;
+      return { domiciliarios: (domis.data ?? []).map((d: any) => ({ ...d, perfil: perfiles.data?.find((p) => p.id === d.user_id) })), pedidos: pedidos.data ?? [] };
+    },
+  });
+  const cerrar = useMutation({
+    mutationFn: async (id: string) => { const { error } = await supabase.rpc("admin_marcar_pedido_entregado" as never, { _pedido_id: id } as never); if (error) throw error; },
+    onSuccess: () => { toast.success("Pedido cerrado como entregado."); qc.invalidateQueries({ queryKey: ["admin-despacho-operativo"] }); qc.invalidateQueries({ queryKey: ["admin-resumen"] }); },
+    onError: (e: Error) => toast.error(e.message || "No se pudo cerrar el pedido."),
+  });
+  return (
+    <section className="mt-8 rounded-2xl border border-border bg-card p-6 shadow-soft">
+      <h2 className="text-xl font-bold">Despacho y disponibilidad en tiempo real</h2>
+      <p className="mt-1 text-sm text-muted-foreground">Solo se cuentan domiciliarios aprobados que marcaron disponibilidad. Los pedidos se ofrecen por turnos; si no hay personal disponible, puedes coordinar un domiciliario externo o cerrar el pedido.</p>
+      <div className="mt-4 grid gap-4 lg:grid-cols-2">
+        <div className="rounded-xl bg-brand-mist p-4"><h3 className="font-semibold">Domiciliarios disponibles ({datos.data?.domiciliarios.length ?? 0})</h3><div className="mt-2 space-y-2">{datos.data?.domiciliarios.map((d: any) => <div key={d.user_id} className="flex justify-between gap-2 rounded-lg bg-card p-3 text-sm"><span>{d.perfil?.nombre_completo || "Domiciliario"} · DOM-{String(d.numero ?? 0).padStart(3,"0")}</span><strong className="text-primary">Disponible</strong></div>)}{!datos.data?.domiciliarios.length && <p className="text-sm text-muted-foreground">No hay domiciliarios disponibles ahora.</p>}</div></div>
+        <div className="rounded-xl bg-brand-mist p-4"><h3 className="font-semibold">Pedidos sin asignar ({datos.data?.pedidos.length ?? 0})</h3><div className="mt-2 space-y-2">{datos.data?.pedidos.map((p) => <article key={p.id} className="rounded-lg bg-card p-3 text-sm"><div className="flex justify-between gap-2"><strong>Pedido #{p.numero} · {p.cliente_nombre}</strong><span>{p.estado}</span></div><p className="mt-1 text-muted-foreground">{p.entrega_direccion}</p><Button className="mt-3" size="sm" variant="outline" disabled={cerrar.isPending} onClick={() => { if (window.confirm("¿Confirmas que este pedido fue entregado por un domiciliario externo o por fuera del sistema? Se cerrará y pasará al historial.")) cerrar.mutate(p.id); }}>Marcar como entregado</Button></article>)}{!datos.data?.pedidos.length && <p className="text-sm text-muted-foreground">No hay pedidos esperando asignación.</p>}</div></div>
+      </div>
+    </section>
+  );
+}
+
 function Admin() {
   const qc = useQueryClient();
   const navigate = useNavigate();
@@ -243,6 +278,7 @@ function Admin() {
 
         <SolicitudesDomiciliarios />
         <PedidosPorConfirmar />
+        <OperacionesDespacho />
         <section className="mt-8 rounded-2xl border border-border bg-card p-6 shadow-soft">
           <div className="flex items-center gap-3"><span className="flex size-11 items-center justify-center rounded-xl bg-brand-lavender text-primary"><MapPin className="size-5" /></span><div><h2 className="text-xl font-bold text-foreground">Cobertura y horarios por sector</h2><p className="mt-1 text-sm text-muted-foreground">Administra las reglas y avisos. Los polígonos geográficos aún deben delimitarse con datos verificados.</p></div></div>
           {reglas.isError && <p role="alert" className="mt-4 text-sm text-destructive">No se pudieron cargar las reglas.</p>}
