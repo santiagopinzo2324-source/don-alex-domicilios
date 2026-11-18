@@ -27,7 +27,6 @@ export function PiePagina() {
           <a href="/#tarifas" className="block hover:text-on-brand">Tarifas</a>
           <a href="/#aliados" className="block hover:text-on-brand">Restaurantes y domiciliarios</a>
           <Link to="/marca" className="block hover:text-on-brand">Manual de marca</Link>
-          <Link to="/administracion" className="block pt-3 text-xs text-on-brand/40 hover:text-on-brand/70">Acceso interno</Link>
         </div>
       </div>
       <div className="border-t border-on-brand/10 py-5 text-center text-xs">
