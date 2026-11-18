@@ -12,6 +12,13 @@ export const esquemaCelular = z
   .transform(normalizarCelular)
   .refine((v) => /^3\d{9}$/.test(v), "Escribe un celular de 10 dígitos que empiece por 3");
 
+export const esquemaRegistroCliente = z.object({
+  nombre_completo: z.string().trim().min(3, "Escribe tu nombre completo").max(100),
+  email: z.string().trim().email("Correo no válido").max(255),
+  password: z.string().min(8, "La contraseña debe tener al menos 8 caracteres").max(72),
+  tipo_cuenta: z.literal("cliente"),
+});
+
 export const esquemaRegistro = z.object({
   nombre_completo: z.string().trim().min(3, "Escribe tu nombre completo").max(100),
   telefono: esquemaCelular,
