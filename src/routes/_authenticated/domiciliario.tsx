@@ -42,11 +42,10 @@ function PortalDomiciliario() {
     queryFn: async () => {
       const { data: auth } = await supabase.auth.getUser();
       if (!auth.user) throw new Error("Inicia sesión.");
-      const [perfil, disponibles, asignados, ganancias, historial, ranking, calificaciones, actividad, avisos, ayudas] = await Promise.all([
+      const [perfil, disponibles, asignados, ganancias, ranking, calificaciones, actividad, avisos, ayudas] = await Promise.all([
         supabase.from("domiciliarios").select("estado, disponible, numero").eq("user_id", auth.user.id).maybeSingle(),
         supabase.from("pedidos").select("id, numero, cliente_nombre, cliente_telefono, recogida_direccion, entrega_direccion, entrega_barrio, valor_domicilio, estado, created_at").is("domiciliario_id", null).in("estado", ["listo", "confirmado"]).order("created_at", { ascending: true }).limit(20),
         supabase.from("pedidos").select("id, numero, cliente_nombre, cliente_telefono, recogida_direccion, entrega_direccion, entrega_barrio, valor_domicilio, estado").eq("domiciliario_id", auth.user.id).in("estado", ["asignado", "hacia_recogida", "recogido", "hacia_entrega"]).order("asignado_at", { ascending: false }),
-        supabase.from("pedidos").select("id, numero, pago_domiciliario, pago_domiciliario_liquidado, estado, created_at, entregado_at").eq("domiciliario_id", auth.user.id).in("estado", ["entregado", "finalizado"]).order("entregado_at", { ascending: false }).limit(100),
         supabase.from("pedidos").select("id, numero, pago_domiciliario, pago_domiciliario_liquidado, estado, created_at, entregado_at").eq("domiciliario_id", auth.user.id).in("estado", ["entregado", "finalizado"]).order("entregado_at", { ascending: false }).limit(100),
         (supabase as any).from("ranking_domiciliarios").select("domiciliario_id, puesto, entregas, promedio_calificacion").eq("domiciliario_id", auth.user.id).maybeSingle(),
         (supabase as any).from("calificaciones_domiciliarios").select("id, estrellas, comentario, created_at").eq("domiciliario_id", auth.user.id).order("created_at", { ascending: false }).limit(20),
@@ -63,7 +62,7 @@ function PortalDomiciliario() {
         total: (ganancias.data ?? []).reduce((sum, p) => sum + (p.pago_domiciliario ?? 0), 0),
         pendiente: (ganancias.data ?? []).filter((p) => !p.pago_domiciliario_liquidado).reduce((sum, p) => sum + (p.pago_domiciliario ?? 0), 0),
         pagado: (ganancias.data ?? []).filter((p) => p.pago_domiciliario_liquidado).reduce((sum, p) => sum + (p.pago_domiciliario ?? 0), 0),
-        historial: historial.data ?? [], ranking: ranking.data, calificaciones: calificaciones.data ?? [],
+        historial: ganancias.data ?? [], ranking: ranking.data, calificaciones: calificaciones.data ?? [],
         actividad: actividad.data ?? [], avisos: avisos.data ?? [], ayudas: ayudas.data ?? [],
       };
     },
