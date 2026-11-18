@@ -19,18 +19,20 @@ const cuentaQuery = queryOptions({
   queryFn: async () => {
     const { data: u } = await supabase.auth.getUser();
     if (!u.user) throw new Error("Sin sesión");
-    const [perfil, roles, direcciones, pedidos, notificaciones] = await Promise.all([
+    const [perfil, roles, direcciones, pedidos, notificaciones, codigos] = await Promise.all([
       supabase.from("profiles").select("*").eq("id", u.user.id).maybeSingle(),
       supabase.from("user_roles").select("role").eq("user_id", u.user.id),
       supabase.from("direcciones").select("*").eq("cliente_id", u.user.id).order("es_principal", { ascending: false }).order("created_at"),
       supabase.from("pedidos").select("id, numero, tipo_servicio, estado, cliente_nombre, cliente_telefono, establecimiento_nombre, entrega_direccion, entrega_barrio, descripcion, observaciones, subtotal_productos, valor_domicilio, total, metodo_pago, created_at, updated_at").eq("cliente_id", u.user.id).order("created_at", { ascending: false }).limit(30),
       supabase.from("notificaciones").select("id, titulo, cuerpo, leida, created_at, pedido_id").eq("user_id", u.user.id).order("created_at", { ascending: false }).limit(20),
+      supabase.from("codigos_recogida").select("pedido_id, codigo").eq("cliente_id", u.user.id),
     ]);
     if (perfil.error) throw perfil.error;
     if (roles.error) throw roles.error;
     if (direcciones.error) throw direcciones.error;
     if (pedidos.error) throw pedidos.error;
     if (notificaciones.error) throw notificaciones.error;
+    if (codigos.error) throw codigos.error;
     return {
       email: u.user.email ?? "",
       userId: u.user.id,
@@ -39,6 +41,7 @@ const cuentaQuery = queryOptions({
       direcciones: direcciones.data ?? [],
       pedidos: pedidos.data ?? [],
       notificaciones: notificaciones.data ?? [],
+      codigos: codigos.data ?? [],
     };
   },
 });
@@ -107,7 +110,7 @@ function Cuenta() {
         </div>
         <div className="mt-6 space-y-6">
           <NotificacionesCliente notificaciones={data.notificaciones} onCambio={() => qc.invalidateQueries({ queryKey: ["cuenta"] })} />
-          <PedidosCliente pedidos={data.pedidos} />
+          <PedidosCliente pedidos={data.pedidos} codigos={data.codigos} />
         </div>
       </main>
     </div>
@@ -131,8 +134,16 @@ const ESTADOS_PEDIDO: Record<string, string> = {
 };
 const dinero = (valor: number | null) => new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(valor ?? 0);
 
-function PedidosCliente({ pedidos }: { pedidos: PedidoCliente[] }) {
+function PedidosCliente({ pedidos, codigos }: { pedidos: PedidoCliente[]; codigos: { pedido_id: string; codigo: string | null }[] }) {
   const activos = pedidos.filter((p) => !["finalizado", "cancelado"].includes(p.estado));
+  const cancelar = useMutation({
+    mutationFn: async (pedidoId: string) => {
+      const { error } = await supabase.rpc("cliente_solicitar_cancelacion" as never, { _pedido_id: pedidoId, _motivo: "Cancelación solicitada por el cliente" } as never);
+      if (error) throw error;
+    },
+    onSuccess: () => toast.success("Tu solicitud de cancelación fue enviada."),
+    onError: (e: Error) => toast.error(e.message || "No se pudo solicitar la cancelación."),
+  });
   return (
     <section className="rounded-3xl border border-border bg-card p-6 shadow-soft">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -163,11 +174,14 @@ function PedidosCliente({ pedidos }: { pedidos: PedidoCliente[] }) {
                   {p.establecimiento_nombre && <p><span className="text-muted-foreground">Negocio:</span> {p.establecimiento_nombre}</p>}
                   <p className="sm:col-span-2"><span className="text-muted-foreground">Entrega:</span> {p.entrega_direccion}{p.entrega_barrio ? " · " + p.entrega_barrio : ""}</p>
                   {p.descripcion && <p className="sm:col-span-2"><span className="text-muted-foreground">Detalle:</span> {p.descripcion}</p>}
+                  {["asignado", "hacia_recogida"].includes(p.estado) && codigos.find((c) => c.pedido_id === p.id)?.codigo && <p className="sm:col-span-2 rounded-xl bg-brand-lavender p-3 font-semibold text-brand-deep">Código de recogida: {codigos.find((c) => c.pedido_id === p.id)?.codigo} · Compártelo únicamente cuando el domiciliario llegue al punto de recogida.</p>}
+                  {["recogido", "hacia_entrega"].includes(p.estado) && <p className="sm:col-span-2 text-sm font-medium text-primary">El pedido ya fue recogido. Cualquier cancelación requiere revisión de administración.</p>}
                   <p className="font-semibold sm:col-span-2">Total: {dinero(p.total)}</p>
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2">
                   <a href={repetir} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl border border-border px-3 py-2 text-sm font-medium text-foreground hover:bg-brand-mist"><RefreshCw className="size-4" /> Consultar o volver a pedir</a>
                   <a href="https://wa.me/573118199006" target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl bg-brand-lavender px-3 py-2 text-sm font-medium text-brand-deep"><MessageCircle className="size-4" /> Ayuda</a>
+                  {!["entregado", "finalizado", "cancelado"].includes(p.estado) && <Button size="sm" variant="outline" disabled={cancelar.isPending} onClick={() => cancelar.mutate(p.id)}>Solicitar cancelación</Button>}
                 </div>
               </article>
             );
