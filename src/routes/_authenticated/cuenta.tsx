@@ -36,6 +36,7 @@ const cuentaQuery = (userId: string) => queryOptions({
     return {
       email: u.user.email ?? "",
       userId: u.user.id,
+      isAnonymous: u.user.is_anonymous === true,
       perfil: perfil.data,
       roles: (roles.data ?? []).map((r) => r.role),
       direcciones: direcciones.data ?? [],
@@ -97,7 +98,8 @@ function Cuenta() {
               ))}
             </div>
           </div>
-          <Button variant="outline" onClick={salir}><LogOut /> Cerrar sesión</Button>
+          {!data.isAnonymous && <Button variant="outline" onClick={salir}><LogOut /> Cerrar sesión</Button>}
+          {data.isAnonymous && <p className="max-w-xs text-right text-xs text-muted-foreground">Esta cuenta privada pertenece a este dispositivo. No necesitas registrarte.</p>}
         </div>
 
         {solicitudPendiente && (
