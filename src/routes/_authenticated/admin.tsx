@@ -1,7 +1,7 @@
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
-import { Activity, Bike, ClipboardList, Clock3, DollarSign, PackageCheck, LogOut, RefreshCw, Store, Users, MapPin, Plus, Save, Trash2, CheckCircle2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Activity, Bike, ClipboardList, Clock3, DollarSign, PackageCheck, LogOut, RefreshCw, Store, Users, MapPin, Plus, Save, Trash2, CheckCircle2, Bell, Volume2, VolumeX } from "lucide-react";
 import { toast } from "sonner";
 
 import { consultaSolicitudesKey, SolicitudesDomiciliarios } from "@/components/admin/SolicitudesDomiciliarios";
@@ -57,6 +57,78 @@ async function cargarReglasCobertura() {
   return data as ReglaCobertura[];
 }
 
+
+function AvisosAdministracion() {
+  const [sonido, setSonido] = useState(false);
+  const [usuarioId, setUsuarioId] = useState<string | null>(null);
+  const avisos = useQuery({
+    queryKey: ["admin-notificaciones"],
+    enabled: !!usuarioId,
+    refetchInterval: 15000,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("notificaciones")
+        .select("id, titulo, cuerpo, leida, created_at, pedido_id")
+        .eq("user_id", usuarioId!)
+        .order("created_at", { ascending: false }).limit(8);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  useEffect(() => {
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    let activo = true;
+    void supabase.auth.getUser().then(({ data }) => {
+      if (!activo || !data.user) return;
+      setUsuarioId(data.user.id);
+      channel = supabase.channel("admin-notificaciones-live")
+        .on("postgres_changes", {
+          event: "INSERT", schema: "public", table: "notificaciones",
+          filter: `user_id=eq.${data.user.id}`,
+        }, () => {
+          void avisos.refetch();
+          if (sonido) {
+            try {
+              const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+              const ctx = new AudioCtx();
+              const osc = ctx.createOscillator();
+              const gain = ctx.createGain();
+              osc.type = "sine";
+              osc.frequency.setValueAtTime(740, ctx.currentTime);
+              gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+              gain.gain.exponentialRampToValueAtTime(0.16, ctx.currentTime + 0.03);
+              gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.5);
+              osc.connect(gain); gain.connect(ctx.destination);
+              osc.start(); osc.stop(ctx.currentTime + 0.51);
+              window.setTimeout(() => void ctx.close(), 700);
+            } catch { /* El navegador puede bloquear el audio. */ }
+          }
+        }).subscribe();
+    });
+    return () => {
+      activo = false;
+      if (channel) void supabase.removeChannel(channel);
+    };
+  }, [sonido]);
+
+  return (
+    <section className="mt-6 rounded-2xl border border-border bg-card p-5 shadow-soft">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div><h2 className="flex items-center gap-2 text-lg font-bold"><Bell className="size-5 text-primary" /> Avisos de operación</h2><p className="mt-1 text-sm text-muted-foreground">Cancelaciones, novedades y notificaciones dirigidas a administración.</p></div>
+        <Button size="sm" variant={sonido ? "outline" : "hero"} onClick={() => setSonido((v) => !v)}>{sonido ? <><VolumeX className="mr-2 size-4" /> Silenciar avisos</> : <><Volume2 className="mr-2 size-4" /> Activar sonido</>}</Button>
+      </div>
+      {avisos.isError && <p className="mt-3 text-sm text-destructive">No se pudieron consultar las notificaciones.</p>}
+      <div className="mt-3 space-y-2">
+        {avisos.data?.map((aviso) => <article key={aviso.id} className="rounded-xl bg-muted/50 p-3">
+          <div className="flex flex-wrap justify-between gap-2"><strong className="text-sm">{aviso.titulo}</strong><span className="text-xs text-muted-foreground">{new Date(aviso.created_at).toLocaleString("es-CO")}</span></div>
+          {aviso.cuerpo && <p className="mt-1 text-sm text-muted-foreground">{aviso.cuerpo}</p>}
+          {aviso.pedido_id && <p className="mt-1 text-xs text-primary">Pedido relacionado: {aviso.pedido_id.slice(0, 8).toUpperCase()}</p>}
+        </article>)}
+        {!avisos.isLoading && !avisos.data?.length && <p className="text-sm text-muted-foreground">No hay avisos nuevos.</p>}
+      </div>
+    </section>
+  );
+}
 
 function PedidosPorConfirmar() {
   const qc = useQueryClient();
@@ -276,7 +348,7 @@ function Admin() {
           </article>
         </section>
 
-        <SolicitudesDomiciliarios />
+        <AvisosAdministracion />\n        <SolicitudesDomiciliarios />
         <PedidosPorConfirmar />
         <OperacionesDespacho />
         <section className="mt-8 rounded-2xl border border-border bg-card p-6 shadow-soft">
