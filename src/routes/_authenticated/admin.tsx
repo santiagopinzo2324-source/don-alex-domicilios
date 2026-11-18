@@ -349,7 +349,8 @@ function Admin() {
           </article>
         </section>
 
-        <AvisosAdministracion />\n        <SolicitudesDomiciliarios />
+        <AvisosAdministracion />
+        <SolicitudesDomiciliarios />
         <PedidosPorConfirmar />
         <OperacionesDespacho />
         <section className="mt-8 rounded-2xl border border-border bg-card p-6 shadow-soft">
