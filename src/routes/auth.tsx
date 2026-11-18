@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { Bike, MailCheck, Store, User, Phone } from "lucide-react";
+import { MailCheck, Store, User, Phone } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 import { toast } from "sonner";
 
@@ -71,7 +71,7 @@ function PaginaAuth() {
             <h2 className="font-display text-4xl font-extrabold leading-tight text-on-brand">
               Pide, sigue y recibe tu domicilio en Pitalito.
             </h2>
-            <p className="mt-4 max-w-md text-on-brand-muted">Una sola cuenta para clientes, domiciliarios y negocios aliados.</p>
+            <p className="mt-4 max-w-md text-on-brand-muted">Una sola cuenta para clientes y negocios aliados.</p>
           </div>
         </div>
       </aside>
@@ -154,7 +154,6 @@ function FormIngreso({ onModo }: { onModo: (m: Modo) => void }) {
 
 const TIPOS = [
   { valor: "cliente", texto: "Cliente", icono: User },
-  { valor: "domiciliario", texto: "Domiciliario", icono: Bike },
   { valor: "restaurante", texto: "Negocio", icono: Store },
 ] as const;
 
@@ -218,7 +217,7 @@ function FormRegistro({ onModo }: { onModo: (m: Modo) => void }) {
         ))}
       </div>
       {tipo !== "cliente" && <p className="mt-3 rounded-xl bg-brand-mist p-3 text-xs text-muted-foreground">
-        Tu solicitud de {tipo === "domiciliario" ? "domiciliario" : "negocio"} será revisada por un administrador antes de habilitar sus funciones.
+        Tu solicitud de negocio será revisada por un administrador antes de habilitar sus funciones.
       </p>}
       {tipo === "cliente" && <><div className="mt-5"><BotonGoogle /></div><Separador /></>}
       <form onSubmit={enviar} className={cn("space-y-4", tipo !== "cliente" && "mt-5")} noValidate>
