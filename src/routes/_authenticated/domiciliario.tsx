@@ -2,9 +2,11 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Bike, Clock3, MapPin, PackageCheck, Power, Wallet } from "lucide-react";
 import { toast } from "sonner";
+import { useState } from "react";
 
 import { Encabezado } from "@/components/sitio/Encabezado";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { formatearCOP } from "@/lib/tarifas";
 
@@ -30,6 +32,7 @@ const ESTADOS: Record<string, string> = {
 };
 
 function PortalDomiciliario() {
+  const [codigos, setCodigos] = useState<Record<string, string>>({});
   const qc = useQueryClient();
   const consulta = useQuery({
     queryKey: ["portal-domiciliario"],
@@ -69,6 +72,8 @@ function PortalDomiciliario() {
   const puedeSolicitarReingreso = ["rechazado", "retirado", "suspendido"].includes(d?.perfil?.estado ?? "");
   const cambiarEstado = (id: string, estado: string) =>
     actualizar.mutate({ fn: "domiciliario_actualizar_estado", args: { _pedido_id: id, _estado: estado } });
+  const confirmarRecogida = (id: string) =>
+    actualizar.mutate({ fn: "domiciliario_confirmar_recogida", args: { _pedido_id: id, _codigo: codigos[id] ?? "" } });
 
   return (
     <div className="min-h-screen bg-brand-mist">
@@ -95,7 +100,7 @@ function PortalDomiciliario() {
             </div>
           </section>
           <section className="mt-8"><h2 className="text-xl font-bold text-foreground">Mis pedidos activos</h2><div className="mt-4 space-y-4">
-            {d?.asignados.map((p) => { const siguiente: Record<string, string> = { asignado: "hacia_recogida", hacia_recogida: "recogido", recogido: "hacia_entrega", hacia_entrega: "entregado" }; return <article key={p.id} className="rounded-2xl border border-border bg-card p-5"><div className="flex flex-wrap justify-between gap-2"><strong>Pedido #{p.numero}</strong><span className="text-sm font-semibold text-primary">{ESTADOS[p.estado]}</span></div><p className="mt-2 text-sm">Cliente: {p.cliente_nombre} · <a className="font-semibold text-primary hover:underline" href={`tel:${p.cliente_telefono}`}>{p.cliente_telefono}</a></p><p className="mt-1 text-sm text-muted-foreground">Recoger: {p.recogida_direccion || "Según indicaciones del pedido"}</p><a href={enlaceMapa(p.recogida_direccion || "")} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline"><MapPin className="size-4" /> Navegar al punto de recogida</a><p className="mt-2 text-sm text-muted-foreground">Entregar: {p.entrega_direccion}{p.entrega_barrio ? " · " + p.entrega_barrio : ""}</p><a href={enlaceMapa(p.entrega_direccion)} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline"><MapPin className="size-4" /> Navegar al destino</a><Button className="mt-4" disabled={actualizar.isPending} onClick={() => cambiarEstado(p.id, siguiente[p.estado] ?? p.estado)}>{p.estado === "hacia_entrega" ? "Marcar como entregado" : "Actualizar estado"}</Button></article>; })}
+            {d?.asignados.map((p) => { const siguiente: Record<string, string> = { asignado: "hacia_recogida", recogido: "hacia_entrega", hacia_entrega: "entregado" }; return <article key={p.id} className="rounded-2xl border border-border bg-card p-5"><div className="flex flex-wrap justify-between gap-2"><strong>Pedido #{p.numero}</strong><span className="text-sm font-semibold text-primary">{ESTADOS[p.estado]}</span></div><p className="mt-2 text-sm">Cliente: {p.cliente_nombre} · <a className="font-semibold text-primary hover:underline" href={`tel:${p.cliente_telefono}`}>{p.cliente_telefono}</a></p><p className="mt-1 text-sm text-muted-foreground">Recoger: {p.recogida_direccion || "Según indicaciones del pedido"}</p><a href={enlaceMapa(p.recogida_direccion || "")} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline"><MapPin className="size-4" /> Navegar al punto de recogida</a><p className="mt-2 text-sm text-muted-foreground">Entregar: {p.entrega_direccion}{p.entrega_barrio ? " · " + p.entrega_barrio : ""}</p><a href={enlaceMapa(p.entrega_direccion)} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline"><MapPin className="size-4" /> Navegar al destino</a>{p.estado === "hacia_recogida" ? <div className="mt-4 flex flex-col gap-2 sm:flex-row"><Input inputMode="numeric" maxLength={6} placeholder="Código de 6 dígitos del cliente" value={codigos[p.id] ?? ""} onChange={(e) => setCodigos((actual) => ({ ...actual, [p.id]: e.target.value.replace(/\\D/g, "").slice(0, 6) }))} /><Button disabled={actualizar.isPending || (codigos[p.id] ?? "").length !== 6} onClick={() => confirmarRecogida(p.id)}>Confirmar recogida</Button></div> : p.estado === "asignado" ? <Button className="mt-4" disabled={actualizar.isPending} onClick={() => cambiarEstado(p.id, siguiente[p.estado])}>Voy al punto de recogida</Button> : p.estado === "recogido" ? <Button className="mt-4" disabled={actualizar.isPending} onClick={() => cambiarEstado(p.id, siguiente[p.estado])}>Iniciar entrega al cliente</Button> : <Button className="mt-4" disabled={actualizar.isPending} onClick={() => cambiarEstado(p.id, siguiente[p.estado])}>Marcar como entregado</Button>}</article>; })}
             {d?.asignados.length === 0 && <p className="rounded-2xl bg-card p-5 text-sm text-muted-foreground">Todavía no tienes pedidos asignados.</p>}
           </div></section>
         </>}
