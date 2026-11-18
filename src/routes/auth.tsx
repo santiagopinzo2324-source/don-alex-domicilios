@@ -27,9 +27,9 @@ function destinoSeguro(valor: unknown): string {
 }
 
 export const Route = createFileRoute("/auth")({
-  validateSearch: (s: Record<string, unknown>): { modo?: Modo; redirect?: string } => ({
-    modo: s.modo === "registro" || s.modo === "recuperar" ? s.modo : undefined,
-    redirect: typeof s.redirect === "string" ? s.redirect : undefined,
+  validateSearch: (s: Record<string, unknown>): { modo?: Modo | undefined; redirect?: string | undefined } => ({
+    modo: s["modo"] === "registro" || s["modo"] === "recuperar" ? s["modo"] : undefined,
+    redirect: typeof s["redirect"] === "string" ? s["redirect"] : undefined,
   }),
   head: () => ({
     meta: [
@@ -89,7 +89,7 @@ function PaginaAuth() {
   );
 }
 
-function Campo({ id, label, error, ...props }: { id: string; label: string; error?: string } & React.ComponentProps<typeof Input>) {
+function Campo({ id, label, error, ...props }: { id: string; label: string; error?: string | undefined } & React.ComponentProps<typeof Input>) {
   return (
     <div className="space-y-1.5">
       <Label htmlFor={id}>{label}</Label>
@@ -118,7 +118,7 @@ function FormIngreso({ onModo }: { onModo: (m: Modo) => void }) {
     setErrores({});
     setCargando(true);
     if (tipoAcceso === "domiciliario") {
-      const celular = esquemaCelular.safeParse(String(datos.telefono ?? ""));
+      const celular = esquemaCelular.safeParse(String(datos["telefono"] ?? ""));
       if (!celular.success) {
         setErrores({ telefono: celular.error.issues[0]?.message ?? "Revisa el celular" });
         setCargando(false);
@@ -126,7 +126,7 @@ function FormIngreso({ onModo }: { onModo: (m: Modo) => void }) {
       }
       const { error } = await supabase.auth.signInWithPassword({
         phone: "+57" + celular.data,
-        password: String(datos.password ?? ""),
+        password: String(datos["password"] ?? ""),
       });
       setCargando(false);
       if (error) toast.error("WhatsApp o contraseña incorrectos. Verifica que tu número esté confirmado.");
@@ -154,9 +154,9 @@ function FormIngreso({ onModo }: { onModo: (m: Modo) => void }) {
       {tipoAcceso === "correo" && <><div className="mt-5"><BotonGoogle /></div><Separador /></>}
       <form onSubmit={enviar} className="space-y-4" noValidate>
         {tipoAcceso === "correo"
-          ? <Campo id="email" label="Correo electrónico" type="email" autoComplete="email" error={errores.email} />
-          : <Campo id="telefono" label="Número de WhatsApp" type="tel" inputMode="tel" placeholder="311 819 9006" autoComplete="tel" error={errores.telefono} />}
-        <Campo id="password" label="Contraseña" type="password" autoComplete="current-password" error={errores.password} />
+          ? <Campo id="email" label="Correo electrónico" type="email" autoComplete="email" error={errores["email"]} />
+          : <Campo id="telefono" label="Número de WhatsApp" type="tel" inputMode="tel" placeholder="311 819 9006" autoComplete="tel" error={errores["telefono"]} />}
+        <Campo id="password" label="Contraseña" type="password" autoComplete="current-password" error={errores["password"]} />
         {tipoAcceso === "correo" && <button type="button" onClick={() => onModo("recuperar")} className="text-sm font-semibold text-primary hover:underline">¿Olvidaste tu contraseña?</button>}
         <Button type="submit" variant="hero" size="lg" className="w-full" disabled={cargando}>{cargando ? "Ingresando…" : "Ingresar"}</Button>
       </form>
@@ -185,13 +185,13 @@ function FormRegistro({ onModo }: { onModo: (m: Modo) => void }) {
     setErrores({});
     setCargando(true);
     if (tipo === "domiciliario") {
-      const celular = esquemaCelular.safeParse(String(bruto.telefono ?? ""));
-      const nombre = String(bruto.nombre_completo ?? "").trim();
-      const password = String(bruto.password ?? "");
+      const celular = esquemaCelular.safeParse(String(bruto["telefono"] ?? ""));
+      const nombre = String(bruto["nombre_completo"] ?? "").trim();
+      const password = String(bruto["password"] ?? "");
       const fallos: Record<string, string> = {};
-      if (!celular.success) fallos.telefono = celular.error.issues[0]?.message ?? "Revisa el celular";
-      if (nombre.length < 3) fallos.nombre_completo = "Escribe tu nombre completo";
-      if (password.length < 8) fallos.password = "La contraseña debe tener al menos 8 caracteres";
+      if (!celular.success) fallos["telefono"] = celular.error.issues[0]?.message ?? "Revisa el celular";
+      if (nombre.length < 3) fallos["nombre_completo"] = "Escribe tu nombre completo";
+      if (password.length < 8) fallos["password"] = "La contraseña debe tener al menos 8 caracteres";
       if (Object.keys(fallos).length) { setErrores(fallos); setCargando(false); return; }
       const phone = "+57" + celular.data;
       const { data, error } = await supabase.auth.signUp({
@@ -257,10 +257,10 @@ function FormRegistro({ onModo }: { onModo: (m: Modo) => void }) {
       </p>}
       {tipo === "cliente" && <><div className="mt-5"><BotonGoogle /></div><Separador /></>}
       <form onSubmit={enviar} className={cn("space-y-4", tipo !== "cliente" && "mt-5")} noValidate>
-        <Campo id="nombre_completo" label="Nombre completo" autoComplete="name" error={errores.nombre_completo} />
-        <Campo id="telefono" label="Número de WhatsApp" type="tel" inputMode="tel" placeholder="311 819 9006" autoComplete="tel" error={errores.telefono} />
-        {tipo !== "domiciliario" && <Campo id="email" label="Correo electrónico" type="email" autoComplete="email" error={errores.email} />}
-        <Campo id="password" label="Contraseña" type="password" autoComplete="new-password" error={errores.password} />
+        <Campo id="nombre_completo" label="Nombre completo" autoComplete="name" error={errores["nombre_completo"]} />
+        <Campo id="telefono" label="Número de WhatsApp" type="tel" inputMode="tel" placeholder="311 819 9006" autoComplete="tel" error={errores["telefono"]} />
+        {tipo !== "domiciliario" && <Campo id="email" label="Correo electrónico" type="email" autoComplete="email" error={errores["email"]} />}
+        <Campo id="password" label="Contraseña" type="password" autoComplete="new-password" error={errores["password"]} />
         <Button type="submit" variant="hero" size="lg" className="w-full" disabled={cargando}>{cargando ? "Creando cuenta…" : "Crear cuenta"}</Button>
       </form>
       <p className="mt-6 text-center text-sm text-muted-foreground">¿Ya tienes cuenta?{" "}

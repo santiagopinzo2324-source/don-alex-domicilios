@@ -12,9 +12,9 @@ export const Route = createFileRoute("/_authenticated/admin")({
   ssr: false,
   beforeLoad: async () => {
     const { data: auth } = await supabase.auth.getUser();
-    if (!auth.user) throw redirect({ to: "/auth" });
+    if (!auth.user) throw redirect({ to: "/administracion" });
     const { data: roles, error } = await supabase.from("user_roles").select("role").eq("user_id", auth.user.id);
-    if (error || !roles?.some((r) => r.role === "admin")) throw redirect({ to: "/" });
+    if (error || !roles?.some((r) => r.role === "admin")) throw redirect({ to: "/administracion" });
   },
   component: Admin,
 });
@@ -53,7 +53,7 @@ async function cargarSolicitudes() {
   const { data: solicitudes, error } = await supabase
     .from("domiciliarios")
     .select("user_id, numero, estado, created_at")
-    .in("estado", ["pendiente", "activo", "rechazado", "retirado", "suspendido"])
+    .in("estado", ["pendiente", "activo", "rechazado", "retirado", "suspendido"] as never)
     .order("created_at", { ascending: true });
   if (error) throw error;
   const ids = (solicitudes ?? []).map((s) => s.user_id);
@@ -65,6 +65,8 @@ async function cargarSolicitudes() {
   if (perfilError) throw perfilError;
   return (solicitudes ?? []).map((s) => ({
     ...s,
+    // La base de datos tiene estados adicionales (rechazado, retirado) que aún no están en los tipos generados.
+    estado: s.estado as string,
     perfil: perfiles?.find((p) => p.id === s.user_id) ?? null,
   }));
 }
@@ -92,7 +94,7 @@ function Admin() {
   const [ediciones, setEdiciones] = useState<Record<string, Partial<ReglaCobertura>>>({});
   const revisar = useMutation({
     mutationFn: async ({ userId, estado }: { userId: string; estado: "activo" | "rechazado" | "retirado" }) => {
-      const { error } = await supabase.rpc("admin_cambiar_estado_domiciliario", { _user_id: userId, _estado: estado });
+      const { error } = await supabase.rpc("admin_cambiar_estado_domiciliario" as never, { _user_id: userId, _estado: estado } as never);
       if (error) throw error;
     },
     onSuccess: (_data, variables) => {
@@ -105,7 +107,7 @@ function Admin() {
 
   const guardarRegla = useMutation({
     mutationFn: async (regla: ReglaCobertura) => {
-      const { error } = await supabase.from("reglas_cobertura").update(ediciones[regla.id] ?? {}).eq("id", regla.id);
+      const { error } = await supabase.from("reglas_cobertura").update((ediciones[regla.id] ?? {}) as never).eq("id", regla.id);
       if (error) throw error;
     },
     onSuccess: () => { toast.success("Regla guardada."); qc.invalidateQueries({ queryKey: ["admin-reglas-cobertura"] }); },

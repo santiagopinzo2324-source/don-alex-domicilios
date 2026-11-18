@@ -11,9 +11,11 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
+import { Route as AdministracionRouteImport } from './routes/administracion'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as MarcaRouteImport } from './routes/marca'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedCuentaRouteImport } from './routes/_authenticated/cuenta'
 import { Route as AuthenticatedDomiciliarioRouteImport } from './routes/_authenticated/domiciliario'
 
@@ -24,6 +26,11 @@ const IndexRoute = IndexRouteImport.update({
 } as any)
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
   id: '/_authenticated',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdministracionRoute = AdministracionRouteImport.update({
+  id: '/administracion',
+  path: '/administracion',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthRoute = AuthRouteImport.update({
@@ -41,9 +48,9 @@ const ResetPasswordRoute = ResetPasswordRouteImport.update({
   path: '/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthenticatedDomiciliarioRoute = AuthenticatedDomiciliarioRouteImport.update({
-  id: '/domiciliario',
-  path: '/domiciliario',
+const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedCuentaRoute = AuthenticatedCuentaRouteImport.update({
@@ -51,20 +58,30 @@ const AuthenticatedCuentaRoute = AuthenticatedCuentaRouteImport.update({
   path: '/cuenta',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedDomiciliarioRoute =
+  AuthenticatedDomiciliarioRouteImport.update({
+    id: '/domiciliario',
+    path: '/domiciliario',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/administracion': typeof AdministracionRoute
   '/auth': typeof AuthRoute
   '/marca': typeof MarcaRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/admin': typeof AuthenticatedAdminRoute
   '/cuenta': typeof AuthenticatedCuentaRoute
   '/domiciliario': typeof AuthenticatedDomiciliarioRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/administracion': typeof AdministracionRoute
   '/auth': typeof AuthRoute
   '/marca': typeof MarcaRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/admin': typeof AuthenticatedAdminRoute
   '/cuenta': typeof AuthenticatedCuentaRoute
   '/domiciliario': typeof AuthenticatedDomiciliarioRoute
 }
@@ -72,30 +89,52 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
+  '/administracion': typeof AdministracionRoute
   '/auth': typeof AuthRoute
   '/marca': typeof MarcaRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/_authenticated/cuenta': typeof AuthenticatedCuentaRoute
   '/_authenticated/domiciliario': typeof AuthenticatedDomiciliarioRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/marca' | '/reset-password' | '/cuenta' | '/domiciliario'
+  fullPaths:
+    | '/'
+    | '/administracion'
+    | '/auth'
+    | '/marca'
+    | '/reset-password'
+    | '/admin'
+    | '/cuenta'
+    | '/domiciliario'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/marca' | '/reset-password' | '/cuenta' | '/domiciliario'
+  to:
+    | '/'
+    | '/administracion'
+    | '/auth'
+    | '/marca'
+    | '/reset-password'
+    | '/admin'
+    | '/cuenta'
+    | '/domiciliario'
   id:
     | '__root__'
     | '/'
     | '/_authenticated'
+    | '/administracion'
     | '/auth'
     | '/marca'
     | '/reset-password'
+    | '/_authenticated/admin'
     | '/_authenticated/cuenta'
+    | '/_authenticated/domiciliario'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  AdministracionRoute: typeof AdministracionRoute
   AuthRoute: typeof AuthRoute
   MarcaRoute: typeof MarcaRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
@@ -115,6 +154,13 @@ declare module '@tanstack/react-router' {
       path: ''
       fullPath: '/'
       preLoaderRoute: typeof AuthenticatedRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/administracion': {
+      id: '/administracion'
+      path: '/administracion'
+      fullPath: '/administracion'
+      preLoaderRoute: typeof AdministracionRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth': {
@@ -138,6 +184,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/admin': {
+      id: '/_authenticated/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AuthenticatedAdminRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/cuenta': {
       id: '/_authenticated/cuenta'
       path: '/cuenta'
@@ -145,14 +198,24 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCuentaRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/domiciliario': {
+      id: '/_authenticated/domiciliario'
+      path: '/domiciliario'
+      fullPath: '/domiciliario'
+      preLoaderRoute: typeof AuthenticatedDomiciliarioRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
   AuthenticatedCuentaRoute: typeof AuthenticatedCuentaRoute
+  AuthenticatedDomiciliarioRoute: typeof AuthenticatedDomiciliarioRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedAdminRoute: AuthenticatedAdminRoute,
   AuthenticatedCuentaRoute: AuthenticatedCuentaRoute,
   AuthenticatedDomiciliarioRoute: AuthenticatedDomiciliarioRoute,
 }
@@ -163,6 +226,7 @@ const AuthenticatedRouteRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  AdministracionRoute: AdministracionRoute,
   AuthRoute: AuthRoute,
   MarcaRoute: MarcaRoute,
   ResetPasswordRoute: ResetPasswordRoute,

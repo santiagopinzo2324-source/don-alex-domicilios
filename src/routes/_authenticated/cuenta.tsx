@@ -123,8 +123,8 @@ function FormPerfil({ userId, email, nombre, telefono }: { userId: string; email
     const fd = new FormData(e.currentTarget);
     const nombre_completo = String(fd.get("nombre_completo") ?? "").trim();
     const cel = esquemaCelular.safeParse(String(fd.get("telefono") ?? ""));
-    if (nombre_completo.length < 3) return toast.error("Escribe tu nombre completo");
-    if (!cel.success) return toast.error(cel.error.issues[0]?.message ?? "Celular no válido");
+    if (nombre_completo.length < 3) { toast.error("Escribe tu nombre completo"); return; }
+    if (!cel.success) { toast.error(cel.error.issues[0]?.message ?? "Celular no válido"); return; }
     guardar.mutate({ nombre_completo, telefono: cel.data });
   }
 
@@ -147,7 +147,7 @@ function Direcciones({ userId, direcciones, onCambio }: { userId: string; direcc
   const [errores, setErrores] = useState<Record<string, string>>({});
 
   const agregar = useMutation({
-    mutationFn: async (d: { etiqueta: string; direccion: string; barrio?: string; referencia?: string }) => {
+    mutationFn: async (d: { etiqueta: string; direccion: string; barrio?: string | undefined; referencia?: string | undefined }) => {
       const { error } = await supabase.from("direcciones").insert({
         cliente_id: userId,
         etiqueta: d.etiqueta,
@@ -217,9 +217,9 @@ function Direcciones({ userId, direcciones, onCambio }: { userId: string; direcc
         ))}
       </ul>
       <form onSubmit={enviar} className="mt-6 grid gap-3 border-t border-border pt-6 sm:grid-cols-2" noValidate>
-        <div className="space-y-1.5"><Label htmlFor="etiqueta">Nombre</Label><Input id="etiqueta" name="etiqueta" placeholder="Casa, Trabajo…" className="h-11 rounded-xl" />{errores.etiqueta && <p className="text-xs text-destructive">{errores.etiqueta}</p>}</div>
+        <div className="space-y-1.5"><Label htmlFor="etiqueta">Nombre</Label><Input id="etiqueta" name="etiqueta" placeholder="Casa, Trabajo…" className="h-11 rounded-xl" />{errores["etiqueta"] && <p className="text-xs text-destructive">{errores["etiqueta"]}</p>}</div>
         <div className="space-y-1.5"><Label htmlFor="barrio">Barrio</Label><Input id="barrio" name="barrio" className="h-11 rounded-xl" /></div>
-        <div className="space-y-1.5 sm:col-span-2"><Label htmlFor="direccion">Dirección</Label><Input id="direccion" name="direccion" placeholder="Calle 5 # 3-20" className="h-11 rounded-xl" />{errores.direccion && <p className="text-xs text-destructive">{errores.direccion}</p>}</div>
+        <div className="space-y-1.5 sm:col-span-2"><Label htmlFor="direccion">Dirección</Label><Input id="direccion" name="direccion" placeholder="Calle 5 # 3-20" className="h-11 rounded-xl" />{errores["direccion"] && <p className="text-xs text-destructive">{errores["direccion"]}</p>}</div>
         <div className="space-y-1.5 sm:col-span-2"><Label htmlFor="referencia">Punto de referencia</Label><Input id="referencia" name="referencia" placeholder="Frente al parque, casa esquinera…" className="h-11 rounded-xl" /></div>
         <Button type="submit" variant="hero" className="sm:col-span-2 sm:w-fit" disabled={agregar.isPending}>Agregar dirección</Button>
       </form>

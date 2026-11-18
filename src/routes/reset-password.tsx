@@ -39,12 +39,12 @@ function Restablecer() {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
     const password = String(fd.get("password") ?? "");
-    if (password.length < 8) return toast.error("La contraseña debe tener al menos 8 caracteres.");
-    if (password !== fd.get("confirmar")) return toast.error("Las contraseñas no coinciden.");
+    if (password.length < 8) { toast.error("La contraseña debe tener al menos 8 caracteres."); return; }
+    if (password !== fd.get("confirmar")) { toast.error("Las contraseñas no coinciden."); return; }
     setCargando(true);
     const { error } = await supabase.auth.updateUser({ password });
     setCargando(false);
-    if (error) return toast.error("No se pudo cambiar la contraseña. Solicita un nuevo enlace.");
+    if (error) { toast.error("No se pudo cambiar la contraseña. Solicita un nuevo enlace."); return; }
     toast.success("Contraseña actualizada.");
     navigate({ to: "/cuenta" });
   }

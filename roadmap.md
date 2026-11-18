@@ -10,3 +10,7 @@
 - [ ] Etapa 8: Mapas de Pitalito y zonas de tarifa (Google Maps)
 - [ ] Etapa 9: Notificaciones y seguimiento en tiempo real
 - [ ] Etapa 10: Pruebas completas, documentación y costos
+
+## Pedido actual (usuario)
+- [x] Corregir errores existentes del panel de administración y del acceso/aprobación de domiciliarios, sin quitar ni rehacer el trabajo del usuario
+- [ ] Agregar mejoras nuevas al panel de administración y a la aprobación de domiciliarios (el usuario lo autorizó)
