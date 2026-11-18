@@ -6,6 +6,7 @@ import { toast } from "sonner";
 
 import { consultaSolicitudesKey, SolicitudesDomiciliarios } from "@/components/admin/SolicitudesDomiciliarios";
 import { Encabezado } from "@/components/sitio/Encabezado";
+import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { formatearCOP } from "@/lib/tarifas";
 
