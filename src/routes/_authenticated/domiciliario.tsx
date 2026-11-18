@@ -53,7 +53,7 @@ function PortalDomiciliario() {
         supabase.from("notificaciones").select("id, titulo, cuerpo, leida, created_at").eq("user_id", auth.user.id).order("created_at", { ascending: false }).limit(15),
         (supabase as any).from("solicitudes_ayuda_domiciliarios").select("id, categoria, descripcion, estado, respuesta, created_at").eq("domiciliario_id", auth.user.id).order("created_at", { ascending: false }).limit(10),
       ]);
-      const error = [perfil, disponibles, asignados, ganancias, historial, ranking, calificaciones, actividad, avisos, ayudas].find((r) => r.error)?.error;
+      const error = [perfil, disponibles, asignados, ganancias, ranking, calificaciones, actividad, avisos, ayudas].find((r) => r.error)?.error;
       if (error) throw error;
       return {
         perfil: perfil.data ? { ...perfil.data, estado: perfil.data.estado as string } : null,
