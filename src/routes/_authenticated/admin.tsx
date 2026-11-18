@@ -1,11 +1,12 @@
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
-import { Activity, Bike, ClipboardList, Clock3, DollarSign, PackageCheck, LogOut, RefreshCw, Store, Users, MapPin, Plus, Save, Trash2, CheckCircle2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Activity, Bike, ClipboardList, Clock3, DollarSign, PackageCheck, LogOut, RefreshCw, Store, Users, MapPin, Plus, Save, Trash2, CheckCircle2, Bell, Volume2, VolumeX } from "lucide-react";
 import { toast } from "sonner";
 
 import { consultaSolicitudesKey, SolicitudesDomiciliarios } from "@/components/admin/SolicitudesDomiciliarios";
 import { Encabezado } from "@/components/sitio/Encabezado";
+import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { formatearCOP } from "@/lib/tarifas";
 
@@ -57,6 +58,78 @@ async function cargarReglasCobertura() {
   return data as ReglaCobertura[];
 }
 
+
+function AvisosAdministracion() {
+  const [sonido, setSonido] = useState(false);
+  const [usuarioId, setUsuarioId] = useState<string | null>(null);
+  const avisos = useQuery({
+    queryKey: ["admin-notificaciones"],
+    enabled: !!usuarioId,
+    refetchInterval: 15000,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("notificaciones")
+        .select("id, titulo, cuerpo, leida, created_at, pedido_id")
+        .eq("user_id", usuarioId!)
+        .order("created_at", { ascending: false }).limit(8);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  useEffect(() => {
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    let activo = true;
+    void supabase.auth.getUser().then(({ data }) => {
+      if (!activo || !data.user) return;
+      setUsuarioId(data.user.id);
+      channel = supabase.channel("admin-notificaciones-live")
+        .on("postgres_changes", {
+          event: "INSERT", schema: "public", table: "notificaciones",
+          filter: `user_id=eq.${data.user.id}`,
+        }, () => {
+          void avisos.refetch();
+          if (sonido) {
+            try {
+              const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+              const ctx = new AudioCtx();
+              const osc = ctx.createOscillator();
+              const gain = ctx.createGain();
+              osc.type = "sine";
+              osc.frequency.setValueAtTime(740, ctx.currentTime);
+              gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+              gain.gain.exponentialRampToValueAtTime(0.16, ctx.currentTime + 0.03);
+              gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.5);
+              osc.connect(gain); gain.connect(ctx.destination);
+              osc.start(); osc.stop(ctx.currentTime + 0.51);
+              window.setTimeout(() => void ctx.close(), 700);
+            } catch { /* El navegador puede bloquear el audio. */ }
+          }
+        }).subscribe();
+    });
+    return () => {
+      activo = false;
+      if (channel) void supabase.removeChannel(channel);
+    };
+  }, [sonido]);
+
+  return (
+    <section className="mt-6 rounded-2xl border border-border bg-card p-5 shadow-soft">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div><h2 className="flex items-center gap-2 text-lg font-bold"><Bell className="size-5 text-primary" /> Avisos de operación</h2><p className="mt-1 text-sm text-muted-foreground">Cancelaciones, novedades y notificaciones dirigidas a administración.</p></div>
+        <Button size="sm" variant={sonido ? "outline" : "hero"} onClick={() => setSonido((v) => !v)}>{sonido ? <><VolumeX className="mr-2 size-4" /> Silenciar avisos</> : <><Volume2 className="mr-2 size-4" /> Activar sonido</>}</Button>
+      </div>
+      {avisos.isError && <p className="mt-3 text-sm text-destructive">No se pudieron consultar las notificaciones.</p>}
+      <div className="mt-3 space-y-2">
+        {avisos.data?.map((aviso) => <article key={aviso.id} className="rounded-xl bg-muted/50 p-3">
+          <div className="flex flex-wrap justify-between gap-2"><strong className="text-sm">{aviso.titulo}</strong><span className="text-xs text-muted-foreground">{new Date(aviso.created_at).toLocaleString("es-CO")}</span></div>
+          {aviso.cuerpo && <p className="mt-1 text-sm text-muted-foreground">{aviso.cuerpo}</p>}
+          {aviso.pedido_id && <p className="mt-1 text-xs text-primary">Pedido relacionado: {aviso.pedido_id.slice(0, 8).toUpperCase()}</p>}
+        </article>)}
+        {!avisos.isLoading && !avisos.data?.length && <p className="text-sm text-muted-foreground">No hay avisos nuevos.</p>}
+      </div>
+    </section>
+  );
+}
 
 function PedidosPorConfirmar() {
   const qc = useQueryClient();
@@ -114,16 +187,34 @@ function OperacionesDespacho() {
   const datos = useQuery({
     queryKey: ["admin-despacho-operativo"], refetchInterval: 10000,
     queryFn: async () => {
-      const [domis, pedidos] = await Promise.all([
+      const [domis, pedidos, ofertas] = await Promise.all([
         (supabase as any).from("domiciliarios").select("user_id, numero, disponible").eq("estado", "activo").eq("disponible", true).order("created_at", { ascending: true }),
         supabase.from("pedidos").select("id, numero, cliente_nombre, entrega_direccion, estado").is("domiciliario_id", null).in("estado", ["confirmado", "listo"]).order("created_at", { ascending: true }),
+        (supabase as any).from("pedido_ofertas_domiciliarios").select("pedido_id, domiciliario_id, ofrecido_at").eq("estado", "ofrecido").order("ofrecido_at", { ascending: true }),
       ]);
       if (domis.error) throw domis.error;
       if (pedidos.error) throw pedidos.error;
-      const ids = (domis.data ?? []).map((d: { user_id: string }) => d.user_id);
-      const perfiles = ids.length ? await supabase.from("profiles").select("id, nombre_completo").in("id", ids) : { data: [], error: null };
+      if (ofertas.error) throw ofertas.error;
+      const ids = [...new Set([
+        ...(domis.data ?? []).map((d: { user_id: string }) => d.user_id),
+        ...(ofertas.data ?? []).map((o: { domiciliario_id: string }) => o.domiciliario_id),
+      ])];
+      const pedidoIds = [...new Set((ofertas.data ?? []).map((o: { pedido_id: string }) => o.pedido_id))];
+      const [perfiles, pedidosOferta] = await Promise.all([
+        ids.length ? supabase.from("profiles").select("id, nombre_completo").in("id", ids) : Promise.resolve({ data: [], error: null }),
+        pedidoIds.length ? supabase.from("pedidos").select("id, numero, cliente_nombre, entrega_direccion").in("id", pedidoIds) : Promise.resolve({ data: [], error: null }),
+      ]);
       if (perfiles.error) throw perfiles.error;
-      return { domiciliarios: (domis.data ?? []).map((d: any) => ({ ...d, perfil: perfiles.data?.find((p) => p.id === d.user_id) })), pedidos: pedidos.data ?? [] };
+      if (pedidosOferta.error) throw pedidosOferta.error;
+      return {
+        domiciliarios: (domis.data ?? []).map((d: any) => ({ ...d, perfil: perfiles.data?.find((p) => p.id === d.user_id) })),
+        pedidos: pedidos.data ?? [],
+        ofertas: (ofertas.data ?? []).map((o: any) => ({
+          ...o,
+          domiciliario: perfiles.data?.find((p) => p.id === o.domiciliario_id),
+          pedido: pedidosOferta.data?.find((p) => p.id === o.pedido_id),
+        })),
+      };
     },
   });
   const cerrar = useMutation({
@@ -138,6 +229,7 @@ function OperacionesDespacho() {
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
         <div className="rounded-xl bg-brand-mist p-4"><h3 className="font-semibold">Domiciliarios disponibles ({datos.data?.domiciliarios.length ?? 0})</h3><div className="mt-2 space-y-2">{datos.data?.domiciliarios.map((d: any) => <div key={d.user_id} className="flex justify-between gap-2 rounded-lg bg-card p-3 text-sm"><span>{d.perfil?.nombre_completo || "Domiciliario"} · DOM-{String(d.numero ?? 0).padStart(3,"0")}</span><strong className="text-primary">Disponible</strong></div>)}{!datos.data?.domiciliarios.length && <p className="text-sm text-muted-foreground">No hay domiciliarios disponibles ahora.</p>}</div></div>
         <div className="rounded-xl bg-brand-mist p-4"><h3 className="font-semibold">Pedidos sin asignar ({datos.data?.pedidos.length ?? 0})</h3><div className="mt-2 space-y-2">{datos.data?.pedidos.map((p) => <article key={p.id} className="rounded-lg bg-card p-3 text-sm"><div className="flex justify-between gap-2"><strong>Pedido #{p.numero} · {p.cliente_nombre}</strong><span>{p.estado}</span></div><p className="mt-1 text-muted-foreground">{p.entrega_direccion}</p><Button className="mt-3" size="sm" variant="outline" disabled={cerrar.isPending} onClick={() => { if (window.confirm("¿Confirmas que este pedido fue entregado por un domiciliario externo o por fuera del sistema? Se cerrará y pasará al historial.")) cerrar.mutate(p.id); }}>Marcar como entregado</Button></article>)}{!datos.data?.pedidos.length && <p className="text-sm text-muted-foreground">No hay pedidos esperando asignación.</p>}</div></div>
+        <div className="rounded-xl bg-brand-mist p-4 lg:col-span-2"><h3 className="font-semibold">Ofertas esperando respuesta ({datos.data?.ofertas.length ?? 0})</h3><p className="mt-1 text-xs text-muted-foreground">Aquí puedes ver a quién se le ofreció cada pedido y desde qué hora está pendiente.</p><div className="mt-2 grid gap-2 md:grid-cols-2">{datos.data?.ofertas.map((o: any) => <article key={o.pedido_id} className="rounded-lg bg-card p-3 text-sm"><strong>Pedido #{o.pedido?.numero ?? "—"} · {o.pedido?.cliente_nombre ?? "Cliente"}</strong><p className="mt-1">Domiciliario: {o.domiciliario?.nombre_completo ?? "Usuario asignado"}</p><p className="text-xs text-muted-foreground">Enviada: {new Date(o.ofrecido_at).toLocaleString("es-CO")}</p><p className="mt-1 text-xs text-muted-foreground">{o.pedido?.entrega_direccion ?? "Dirección no disponible"}</p></article>)}{!datos.data?.ofertas.length && <p className="text-sm text-muted-foreground">No hay ofertas pendientes de respuesta.</p>}</div></div>
       </div>
     </section>
   );
@@ -276,6 +368,7 @@ function Admin() {
           </article>
         </section>
 
+        <AvisosAdministracion />
         <SolicitudesDomiciliarios />
         <PedidosPorConfirmar />
         <OperacionesDespacho />
