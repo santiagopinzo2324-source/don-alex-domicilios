@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { MailCheck, Store, User, Phone } from "lucide-react";
+import { Bike, MailCheck, Store, User } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 import { toast } from "sonner";
 
@@ -148,7 +148,14 @@ function FormIngreso({ onModo }: { onModo: (m: Modo) => void }) {
 const TIPOS = [
   { valor: "cliente", texto: "Cliente", icono: User },
   { valor: "restaurante", texto: "Negocio", icono: Store },
+  { valor: "domiciliario", texto: "Domiciliario", icono: Bike },
 ] as const;
+
+function searchRedirect() {
+  const params = new URLSearchParams(window.location.search);
+  const redirect = params.get("redirect");
+  return redirect ? `?redirect=${encodeURIComponent(redirect)}` : "";
+}
 
 function FormRegistro({ onModo }: { onModo: (m: Modo) => void }) {
   const [tipo, setTipo] = useState<(typeof TIPOS)[number]["valor"]>("cliente");
@@ -173,7 +180,7 @@ function FormRegistro({ onModo }: { onModo: (m: Modo) => void }) {
     const { email, password, ...meta } = r.data;
     const { data, error } = await supabase.auth.signUp({
       email, password,
-      options: { emailRedirectTo: `${window.location.origin}/auth`, data: meta },
+      options: { emailRedirectTo: `${window.location.origin}/auth${searchRedirect()}`, data: meta },
     });
     setCargando(false);
     if (error) {
@@ -210,7 +217,7 @@ function FormRegistro({ onModo }: { onModo: (m: Modo) => void }) {
         ))}
       </div>
       {tipo !== "cliente" && <p className="mt-3 rounded-xl bg-brand-mist p-3 text-xs text-muted-foreground">
-        Tu solicitud de negocio será revisada por un administrador antes de habilitar sus funciones.
+        {tipo === "domiciliario" ? "Tu postulación como domiciliario se enviará a administración para revisión. Después podrás consultar el estado desde el módulo de domiciliarios." : "Tu solicitud de negocio será revisada por un administrador antes de habilitar sus funciones."}
       </p>}
       {tipo === "cliente" && <><div className="mt-5"><BotonGoogle /></div><Separador /></>}
       <form onSubmit={enviar} className={cn("space-y-4", tipo !== "cliente" && "mt-5")} noValidate>
