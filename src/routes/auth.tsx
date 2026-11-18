@@ -201,7 +201,14 @@ function FormRegistro({ onModo }: { onModo: (m: Modo) => void }) {
       });
       setCargando(false);
       if (error) {
-        toast.error(error.message.toLowerCase().includes("phone") ? "No se pudo crear la cuenta. Revisa que el acceso por teléfono esté habilitado en Supabase y que el número no esté registrado." : "No pudimos crear la cuenta. Intenta nuevamente.");
+        const codigo = (error as { code?: string }).code;
+        if (codigo === "phone_provider_disabled" || error.message.toLowerCase().includes("phone signups are disabled")) {
+          toast.error("El registro por teléfono está desactivado en Supabase. El administrador debe habilitar Phone en Authentication → Sign In / Providers → Phone.");
+        } else if (codigo === "user_already_exists" || error.message.toLowerCase().includes("already")) {
+          toast.error("Este número ya tiene una cuenta. Intenta ingresar con ese número o recuperar el acceso.");
+        } else {
+          toast.error(`No se pudo crear la cuenta: ${error.message}`);
+        }
         return;
       }
       if (!data.session) {
