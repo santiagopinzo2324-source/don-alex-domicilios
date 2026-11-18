@@ -57,6 +57,57 @@ async function cargarReglasCobertura() {
   return data as ReglaCobertura[];
 }
 
+
+function PedidosPorConfirmar() {
+  const qc = useQueryClient();
+  const [tarifas, setTarifas] = useState<Record<string, string>>({});
+  const pedidos = useQuery({
+    queryKey: ["admin-pedidos-recibidos"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("pedidos")
+        .select("id, numero, cliente_nombre, cliente_telefono, recogida_direccion, entrega_direccion, entrega_barrio, entrega_referencia, descripcion, observaciones, metodo_pago, created_at")
+        .eq("estado", "recibido").order("created_at", { ascending: true });
+      if (error) throw error;
+      return data ?? [];
+    },
+    refetchInterval: 15000,
+  });
+  const confirmar = useMutation({
+    mutationFn: async ({ id, tarifa }: { id: string; tarifa: number }) => {
+      const { error } = await supabase.from("pedidos").update({
+        estado: "confirmado", estado_tarifa: "ok", valor_domicilio: tarifa, total: tarifa,
+      } as never).eq("id", id).eq("estado", "recibido");
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Pedido confirmado. Ya puede aparecer a los domiciliarios disponibles.");
+      qc.invalidateQueries({ queryKey: ["admin-pedidos-recibidos"] });
+      qc.invalidateQueries({ queryKey: ["admin-resumen"] });
+    },
+    onError: (e: Error) => toast.error(e.message || "No se pudo confirmar el pedido."),
+  });
+  return (
+    <section className="mt-8 rounded-2xl border border-brand-lilac bg-card p-6 shadow-soft">
+      <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-xl font-bold text-foreground">Pedidos nuevos por revisar</h2><p className="mt-1 text-sm text-muted-foreground">Define la tarifa del domicilio y confirma cada solicitud para enviarla al módulo de domiciliarios.</p></div><span className="rounded-full bg-brand-lavender px-3 py-1 text-sm font-semibold text-primary">{pedidos.data?.length ?? 0} pendientes</span></div>
+      {pedidos.isError && <p className="mt-4 text-sm text-destructive">No se pudieron cargar los pedidos nuevos.</p>}
+      {pedidos.isLoading && <p className="mt-4 text-sm text-muted-foreground">Cargando pedidos…</p>}
+      {!pedidos.isLoading && pedidos.data?.length === 0 && <p className="mt-4 rounded-xl bg-brand-mist p-4 text-sm text-muted-foreground">No hay pedidos nuevos por revisar.</p>}
+      <div className="mt-4 space-y-3">
+        {pedidos.data?.map((p) => <article key={p.id} className="rounded-xl border border-border p-4">
+          <div className="flex flex-wrap justify-between gap-2"><h3 className="font-bold">Pedido #{p.numero} · {p.cliente_nombre}</h3><span className="text-xs text-muted-foreground">{new Date(p.created_at).toLocaleString("es-CO")}</span></div>
+          <p className="mt-1 text-sm text-muted-foreground">Celular: {p.cliente_telefono} · Pago: {p.metodo_pago ?? "Por definir"}</p>
+          {p.recogida_direccion && <p className="mt-2 text-sm"><strong>Recoger:</strong> {p.recogida_direccion}</p>}
+          <p className="mt-1 text-sm"><strong>Entregar:</strong> {p.entrega_direccion}{p.entrega_barrio ? " · " + p.entrega_barrio : ""}</p>
+          {p.entrega_referencia && <p className="text-sm"><strong>Referencia:</strong> {p.entrega_referencia}</p>}
+          {p.descripcion && <p className="mt-1 text-sm"><strong>Detalle:</strong> {p.descripcion}</p>}
+          {p.observaciones && <p className="text-sm"><strong>Indicaciones:</strong> {p.observaciones}</p>}
+          <div className="mt-3 flex flex-wrap items-end gap-3"><label className="text-sm font-semibold">Valor del domicilio (COP)<input type="number" min="1" step="500" value={tarifas[p.id] ?? ""} onChange={(e) => setTarifas((v) => ({ ...v, [p.id]: e.target.value }))} placeholder="Ej. 6000" className="mt-1 block h-10 w-44 rounded-lg border border-input bg-background px-3 font-normal" /></label><button disabled={confirmar.isPending || !Number.isInteger(Number(tarifas[p.id])) || Number(tarifas[p.id]) <= 0} onClick={() => confirmar.mutate({ id: p.id, tarifa: Number(tarifas[p.id]) })} className="inline-flex h-10 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-50"><CheckCircle2 className="size-4" /> Confirmar pedido</button></div>
+        </article>)}
+      </div>
+    </section>
+  );
+}
+
 function Admin() {
   const qc = useQueryClient();
   const navigate = useNavigate();
@@ -190,7 +241,8 @@ function Admin() {
           </article>
         </section>
 
-        <SolicitudesDomiciliarios />\n        <PedidosPorConfirmar />
+        <SolicitudesDomiciliarios />
+        <PedidosPorConfirmar />
         <section className="mt-8 rounded-2xl border border-border bg-card p-6 shadow-soft">
           <div className="flex items-center gap-3"><span className="flex size-11 items-center justify-center rounded-xl bg-brand-lavender text-primary"><MapPin className="size-5" /></span><div><h2 className="text-xl font-bold text-foreground">Cobertura y horarios por sector</h2><p className="mt-1 text-sm text-muted-foreground">Administra las reglas y avisos. Los polígonos geográficos aún deben delimitarse con datos verificados.</p></div></div>
           {reglas.isError && <p role="alert" className="mt-4 text-sm text-destructive">No se pudieron cargar las reglas.</p>}
