@@ -108,7 +108,6 @@ function Separador() {
 }
 
 function FormIngreso({ onModo }: { onModo: (m: Modo) => void }) {
-  const [tipoAcceso, setTipoAcceso] = useState<"correo" | "domiciliario">("correo");
   const [errores, setErrores] = useState<Record<string, string>>({});
   const [cargando, setCargando] = useState(false);
 
@@ -116,48 +115,27 @@ function FormIngreso({ onModo }: { onModo: (m: Modo) => void }) {
     e.preventDefault();
     const datos = Object.fromEntries(new FormData(e.currentTarget));
     setErrores({});
-    setCargando(true);
-    if (tipoAcceso === "domiciliario") {
-      const celular = esquemaCelular.safeParse(String(datos["telefono"] ?? ""));
-      if (!celular.success) {
-        setErrores({ telefono: celular.error.issues[0]?.message ?? "Revisa el celular" });
-        setCargando(false);
-        return;
-      }
-      const { error } = await supabase.auth.signInWithPassword({
-        phone: "+57" + celular.data,
-        password: String(datos["password"] ?? ""),
-      });
-      setCargando(false);
-      if (error) toast.error("WhatsApp o contraseña incorrectos. Verifica que tu número esté confirmado.");
-      return;
-    }
     const r = esquemaIngreso.safeParse(datos);
     if (!r.success) {
       setErrores(Object.fromEntries(r.error.issues.map((i) => [i.path[0], i.message])));
-      setCargando(false);
       return;
     }
+    setCargando(true);
     const { error } = await supabase.auth.signInWithPassword(r.data);
     setCargando(false);
-    if (error) toast.error(error.message.includes("Email not confirmed") ? "Confirma tu correo antes de ingresar." : "Correo o contraseña incorrectos.");
+    if (error) toast.error(error.message.includes("Email not confirmed") ? "Confirma tu correo electrónico para ingresar." : "Correo o contraseña incorrectos.");
   }
 
   return (
     <>
       <h1 className="font-display text-2xl font-bold text-foreground">Bienvenido de nuevo</h1>
       <p className="mt-1 text-sm text-muted-foreground">Ingresa a tu cuenta de Don Alex.</p>
-      <div className="mt-6 grid grid-cols-2 gap-2">
-        <Button type="button" variant={tipoAcceso === "correo" ? "default" : "outline"} onClick={() => setTipoAcceso("correo")}>Correo</Button>
-        <Button type="button" variant={tipoAcceso === "domiciliario" ? "default" : "outline"} onClick={() => setTipoAcceso("domiciliario")}><Phone className="mr-2 size-4" /> Domiciliario</Button>
-      </div>
-      {tipoAcceso === "correo" && <><div className="mt-5"><BotonGoogle /></div><Separador /></>}
+      <div className="mt-5"><BotonGoogle /></div>
+      <Separador />
       <form onSubmit={enviar} className="space-y-4" noValidate>
-        {tipoAcceso === "correo"
-          ? <Campo id="email" label="Correo electrónico" type="email" autoComplete="email" error={errores["email"]} />
-          : <Campo id="telefono" label="Número de WhatsApp" type="tel" inputMode="tel" placeholder="311 819 9006" autoComplete="tel" error={errores["telefono"]} />}
+        <Campo id="email" label="Correo electrónico" type="email" autoComplete="email" error={errores["email"]} />
         <Campo id="password" label="Contraseña" type="password" autoComplete="current-password" error={errores["password"]} />
-        {tipoAcceso === "correo" && <button type="button" onClick={() => onModo("recuperar")} className="text-sm font-semibold text-primary hover:underline">¿Olvidaste tu contraseña?</button>}
+        <button type="button" onClick={() => onModo("recuperar")} className="text-sm font-semibold text-primary hover:underline">¿Olvidaste tu contraseña?</button>
         <Button type="submit" variant="hero" size="lg" className="w-full" disabled={cargando}>{cargando ? "Ingresando…" : "Ingresar"}</Button>
       </form>
       <p className="mt-6 text-center text-sm text-muted-foreground">¿No tienes cuenta?{" "}
@@ -184,41 +162,6 @@ function FormRegistro({ onModo }: { onModo: (m: Modo) => void }) {
     const bruto = Object.fromEntries(new FormData(e.currentTarget));
     setErrores({});
     setCargando(true);
-    if (tipo === "domiciliario") {
-      const celular = esquemaCelular.safeParse(String(bruto["telefono"] ?? ""));
-      const nombre = String(bruto["nombre_completo"] ?? "").trim();
-      const password = String(bruto["password"] ?? "");
-      const fallos: Record<string, string> = {};
-      if (!celular.success) fallos["telefono"] = celular.error.issues[0]?.message ?? "Revisa el celular";
-      if (nombre.length < 3) fallos["nombre_completo"] = "Escribe tu nombre completo";
-      if (password.length < 8) fallos["password"] = "La contraseña debe tener al menos 8 caracteres";
-      if (Object.keys(fallos).length) { setErrores(fallos); setCargando(false); return; }
-      const phone = "+57" + celular.data;
-      const { data, error } = await supabase.auth.signUp({
-        phone,
-        password,
-        options: { data: { nombre_completo: nombre, telefono: celular.data, tipo_cuenta: "domiciliario" } },
-      });
-      setCargando(false);
-      if (error) {
-        const codigo = (error as { code?: string }).code;
-        if (codigo === "phone_provider_disabled" || error.message.toLowerCase().includes("phone signups are disabled")) {
-          toast.error("El registro por teléfono está desactivado en Supabase. El administrador debe habilitar Phone en Authentication → Sign In / Providers → Phone.");
-        } else if (codigo === "user_already_exists" || error.message.toLowerCase().includes("already")) {
-          toast.error("Este número ya tiene una cuenta. Intenta ingresar con ese número o recuperar el acceso.");
-        } else {
-          toast.error(`No se pudo crear la cuenta: ${error.message}`);
-        }
-        return;
-      }
-      if (!data.session) {
-        toast.error("La cuenta se creó, pero Supabase aún exige confirmar el teléfono. Hay que desactivar esa confirmación en la configuración de autenticación.");
-        return;
-      }
-      toast.success("Solicitud registrada. Queda pendiente de aprobación.");
-      onModo("ingresar");
-      return;
-    }
     const datos = { ...bruto, tipo_cuenta: tipo };
     const r = tipo === "cliente"
       ? esquemaRegistroCliente.safeParse(datos)
@@ -229,15 +172,21 @@ function FormRegistro({ onModo }: { onModo: (m: Modo) => void }) {
       return;
     }
     const { email, password, ...meta } = r.data;
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email, password,
       options: { emailRedirectTo: `${window.location.origin}/auth`, data: meta },
     });
     setCargando(false);
-    if (error) { toast.error(error.message.includes("already") ? "Ese correo ya tiene una cuenta." : "No pudimos crear la cuenta. Revisa los datos."); return; }
+    if (error) {
+      toast.error(error.message.includes("already") ? "Ese correo ya tiene una cuenta. Ingresa con ese correo o recupera tu contraseña." : `No se pudo crear la cuenta: ${error.message}`);
+      return;
+    }
+    if (data.session) {
+      toast.success(tipo === "cliente" ? "¡Tu cuenta está lista!" : "¡Solicitud registrada! Queda pendiente de aprobación.");
+      return;
+    }
     setEnviadoA(email);
   }
-
 
   if (enviadoA) return (
     <div className="text-center">
