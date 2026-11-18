@@ -6,9 +6,10 @@ export const Route = createFileRoute("/_authenticated")({
   ssr: false,
   beforeLoad: async ({ location }) => {
     const { data } = await supabase.auth.getUser();
-    if (!data.user) {
-      // Cada cliente debe ingresar con su propia cuenta. No crear sesiones anónimas
-      // compartidas ni permitir que un dispositivo sin identificar consulte pedidos.
+    if (!data.user || data.user.is_anonymous === true) {
+      // Cerrar también las sesiones anónimas antiguas: solo cuentas registradas
+      // pueden consultar el historial privado y crear pedidos desde Mi cuenta.
+      if (data.user?.is_anonymous) await supabase.auth.signOut();
       if (location.pathname.startsWith("/admin")) throw redirect({ to: "/administracion" });
       throw redirect({ to: "/auth", search: { redirect: location.href } });
     }
