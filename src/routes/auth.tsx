@@ -130,12 +130,6 @@ function FormIngreso({ onModo }: { onModo: (m: Modo) => void }) {
     <>
       <h1 className="font-display text-2xl font-bold text-foreground">Bienvenido de nuevo</h1>
       <p className="mt-1 text-sm text-muted-foreground">Ingresa a tu cuenta de Don Alex.</p>
-      <div className="mt-4 rounded-xl border border-primary/20 bg-brand-mist p-3 text-sm">
-        ¿Eres domiciliario?{" "}
-        <Link to="/auth" search={{ redirect: "/domiciliario" }} className="font-semibold text-primary hover:underline">
-          Ingresar como domiciliario
-        </Link>
-      </div>
       <div className="mt-5"><BotonGoogle /></div>
       <Separador />
       <form onSubmit={enviar} className="space-y-4" noValidate>
@@ -147,6 +141,13 @@ function FormIngreso({ onModo }: { onModo: (m: Modo) => void }) {
       <p className="mt-6 text-center text-sm text-muted-foreground">¿No tienes cuenta?{" "}
         <button onClick={() => onModo("registro")} className="font-semibold text-primary hover:underline">Crear cuenta</button>
       </p>
+      <div className="mt-8 border-t border-border pt-5">
+        <p className="text-center text-xs font-bold uppercase tracking-wide text-muted-foreground">Módulo exclusivo para domiciliarios</p>
+        <p className="mt-1 text-center text-xs text-muted-foreground">Acceso para domiciliarios con cuenta previamente registrada y aprobada.</p>
+        <Link to="/auth" search={{ redirect: "/domiciliario" }} className="mt-3 flex h-11 w-full items-center justify-center rounded-xl border border-primary/30 bg-brand-mist px-4 text-sm font-semibold text-primary transition-colors hover:bg-brand-lavender">
+          Ingresar al módulo de domiciliarios
+        </Link>
+      </div>
     </>
   );
 }
