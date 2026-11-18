@@ -217,7 +217,7 @@ function FormRegistro({ onModo }: { onModo: (m: Modo) => void }) {
       <form onSubmit={enviar} className={cn("space-y-4", tipo !== "cliente" && "mt-5")} noValidate>
         <Campo id="nombre_completo" label="Nombre completo" autoComplete="name" error={errores["nombre_completo"]} />
         {tipo !== "cliente" && <Campo id="telefono" label="Número de WhatsApp" type="tel" inputMode="tel" placeholder="311 819 9006" autoComplete="tel" error={errores["telefono"]} />}
-        {tipo !== "domiciliario" && <Campo id="email" label="Correo electrónico" type="email" autoComplete="email" error={errores["email"]} />}
+        <Campo id="email" label="Correo electrónico" type="email" autoComplete="email" error={errores["email"]} />
         <Campo id="password" label="Contraseña" type="password" autoComplete="new-password" error={errores["password"]} />
         <Button type="submit" variant="hero" size="lg" className="w-full" disabled={cargando}>{cargando ? "Creando cuenta…" : "Crear cuenta"}</Button>
       </form>
