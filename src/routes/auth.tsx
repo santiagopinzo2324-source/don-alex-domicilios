@@ -130,6 +130,12 @@ function FormIngreso({ onModo }: { onModo: (m: Modo) => void }) {
     <>
       <h1 className="font-display text-2xl font-bold text-foreground">Bienvenido de nuevo</h1>
       <p className="mt-1 text-sm text-muted-foreground">Ingresa a tu cuenta de Don Alex.</p>
+      <div className="mt-4 rounded-xl border border-primary/20 bg-brand-mist p-3 text-sm">
+        ¿Eres domiciliario?{" "}
+        <Link to="/auth" search={{ redirect: "/domiciliario" }} className="font-semibold text-primary hover:underline">
+          Ingresar como domiciliario
+        </Link>
+      </div>
       <div className="mt-5"><BotonGoogle /></div>
       <Separador />
       <form onSubmit={enviar} className="space-y-4" noValidate>
