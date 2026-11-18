@@ -109,6 +109,7 @@ function Cuenta() {
           <Direcciones userId={data.userId} direcciones={data.direcciones} onCambio={() => qc.invalidateQueries({ queryKey: ["cuenta"] })} />
         </div>
         <div className="mt-6 space-y-6">
+          <NuevoPedido userId={data.userId} nombre={data.perfil?.nombre_completo ?? ""} telefono={data.perfil?.telefono ?? ""} direcciones={data.direcciones} onCreado={() => qc.invalidateQueries({ queryKey: ["cuenta"] })} />
           <NotificacionesCliente notificaciones={data.notificaciones} onCambio={() => qc.invalidateQueries({ queryKey: ["cuenta"] })} />
           <PedidosCliente pedidos={data.pedidos} codigos={data.codigos} />
         </div>
@@ -117,6 +118,61 @@ function Cuenta() {
   );
 }
 
+
+
+function NuevoPedido({ userId, nombre, telefono, direcciones, onCreado }: {
+  userId: string; nombre: string; telefono: string;
+  direcciones: { id: string; direccion: string; barrio: string | null; referencia: string | null; es_principal: boolean }[];
+  onCreado: () => void;
+}) {
+  const crear = useMutation({
+    mutationFn: async (v: { cliente_nombre: string; cliente_telefono: string; recogida_direccion: string; entrega_direccion: string; entrega_barrio: string; entrega_referencia: string; descripcion: string; observaciones: string; metodo_pago: string }) => {
+      const { data, error } = await supabase.from("pedidos").insert({
+        canal: "web", tipo_servicio: "domicilio", estado: "recibido", estado_tarifa: "revision",
+        cliente_id: userId, creado_por: userId, cliente_nombre: v.cliente_nombre,
+        cliente_telefono: v.cliente_telefono, recogida_direccion: v.recogida_direccion || null,
+        entrega_direccion: v.entrega_direccion, entrega_barrio: v.entrega_barrio || null,
+        entrega_referencia: v.entrega_referencia || null, descripcion: v.descripcion || null,
+        observaciones: v.observaciones || null, subtotal_productos: 0, total: 0, metodo_pago: v.metodo_pago,
+      } as never).select("id, numero").single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (pedido) => { toast.success(`¡Pedido #${pedido.numero} recibido! Administración revisará la tarifa y lo confirmará.`); onCreado(); },
+    onError: (e: Error) => toast.error(e.message || "No se pudo registrar el pedido."),
+  });
+  function enviar(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const f = new FormData(e.currentTarget);
+    const v = {
+      cliente_nombre: String(f.get("cliente_nombre") ?? "").trim(), cliente_telefono: String(f.get("cliente_telefono") ?? "").trim(),
+      recogida_direccion: String(f.get("recogida_direccion") ?? "").trim(), entrega_direccion: String(f.get("entrega_direccion") ?? "").trim(),
+      entrega_barrio: String(f.get("entrega_barrio") ?? "").trim(), entrega_referencia: String(f.get("entrega_referencia") ?? "").trim(),
+      descripcion: String(f.get("descripcion") ?? "").trim(), observaciones: String(f.get("observaciones") ?? "").trim(),
+      metodo_pago: String(f.get("metodo_pago") ?? "efectivo"),
+    };
+    if (v.cliente_nombre.length < 3 || v.cliente_telefono.length < 7 || v.entrega_direccion.length < 5) { toast.error("Completa tu nombre, celular y dirección de entrega."); return; }
+    crear.mutate(v);
+  }
+  return (
+    <section className="rounded-3xl border border-brand-lilac bg-card p-6 shadow-soft">
+      <div className="flex items-center gap-2"><PlusCircle className="size-5 text-primary" /><h2 className="text-lg font-bold text-foreground">Solicitar un domicilio</h2></div>
+      <p className="mt-1 text-sm text-muted-foreground">Registra lo que necesitas. Administración revisará la tarifa y confirmará el pedido.</p>
+      <form onSubmit={enviar} className="mt-5 grid gap-3 sm:grid-cols-2">
+        <div className="space-y-1"><Label htmlFor="pedido_nombre">Nombre</Label><Input id="pedido_nombre" name="cliente_nombre" defaultValue={nombre} required /></div>
+        <div className="space-y-1"><Label htmlFor="pedido_telefono">Celular</Label><Input id="pedido_telefono" name="cliente_telefono" defaultValue={telefono} type="tel" required /></div>
+        <div className="space-y-1 sm:col-span-2"><Label htmlFor="pedido_recogida">Dirección de recogida (opcional)</Label><Input id="pedido_recogida" name="recogida_direccion" placeholder="Negocio o lugar donde recogemos" /></div>
+        <div className="space-y-1 sm:col-span-2"><Label htmlFor="pedido_entrega">Dirección de entrega</Label><Input id="pedido_entrega" name="entrega_direccion" list="direcciones-guardadas" placeholder="Calle, carrera, número y complemento" required /><datalist id="direcciones-guardadas">{direcciones.map((d) => <option key={d.id} value={d.direccion}>{d.barrio ?? ""}</option>)}</datalist></div>
+        <div className="space-y-1"><Label htmlFor="pedido_barrio">Barrio</Label><Input id="pedido_barrio" name="entrega_barrio" /></div>
+        <div className="space-y-1"><Label htmlFor="pedido_ref">Punto de referencia</Label><Input id="pedido_ref" name="entrega_referencia" /></div>
+        <div className="space-y-1 sm:col-span-2"><Label htmlFor="pedido_desc">¿Qué necesitas recoger o llevar?</Label><Input id="pedido_desc" name="descripcion" placeholder="Describe el pedido o diligencia" /></div>
+        <div className="space-y-1"><Label htmlFor="pedido_pago">Método de pago</Label><select id="pedido_pago" name="metodo_pago" className="h-11 w-full rounded-xl border border-input bg-background px-3 text-sm"><option value="efectivo">Efectivo</option><option value="transferencia">Transferencia</option></select></div>
+        <div className="space-y-1"><Label htmlFor="pedido_obs">Indicaciones adicionales</Label><Input id="pedido_obs" name="observaciones" placeholder="Detalles para el domiciliario" /></div>
+        <Button type="submit" variant="hero" className="sm:col-span-2" disabled={crear.isPending}>{crear.isPending ? "Enviando pedido…" : "Enviar solicitud de domicilio"}</Button>
+      </form>
+    </section>
+  );
+}
 
 type PedidoCliente = {
   id: string; numero: number; tipo_servicio: string; estado: string; cliente_nombre: string;
