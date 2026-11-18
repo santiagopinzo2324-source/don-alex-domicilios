@@ -197,7 +197,7 @@ function Inicio() {
                 precio antes de confirmar.
               </p>
             </div>
-            <div className="mt-14 grid gap-6 lg:grid-cols-3">
+            <div className="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
               <TarjetaTarifa
                 destacada
                 titulo="Área urbana de Pitalito"
@@ -213,6 +213,11 @@ function Inicio() {
                 titulo="Zona rural y especiales"
                 detalle="Veredas y recorridos especiales"
                 valor={`Desde ${formatearCOP(TARIFAS_POR_DEFECTO.rural)}`}
+              />
+              <TarjetaTarifa
+                titulo="Compras"
+                detalle="Hacemos tus compras por ti en tiendas y supermercados."
+                valor={`Desde ${formatearCOP(7000)}`}
               />
             </div>
             <div className="mx-auto mt-10 flex max-w-3xl items-start gap-3 rounded-2xl border border-brand-lilac/50 bg-card p-5 text-sm text-muted-foreground shadow-soft">
