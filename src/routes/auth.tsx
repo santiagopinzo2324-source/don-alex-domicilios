@@ -257,6 +257,7 @@ function FormRegistro({ onModo }: { onModo: (m: Modo) => void }) {
       {tipo !== "cliente" && <p className="mt-3 rounded-xl bg-brand-mist p-3 text-xs text-muted-foreground">
         Tu solicitud de {tipo === "domiciliario" ? "domiciliario" : "negocio"} será revisada por un administrador antes de habilitar sus funciones.
       </p>}
+      {tipo === "cliente" && <><div className="mt-5"><BotonGoogle /></div><Separador /></>}
       <form onSubmit={enviar} className={cn("space-y-4", tipo !== "cliente" && "mt-5")} noValidate>
         <Campo id="nombre_completo" label="Nombre completo" autoComplete="name" error={errores["nombre_completo"]} />
         {tipo !== "cliente" && <Campo id="telefono" label="Número de WhatsApp" type="tel" inputMode="tel" placeholder="311 819 9006" autoComplete="tel" error={errores["telefono"]} />}
