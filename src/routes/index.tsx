@@ -130,34 +130,6 @@ function Inicio() {
           </div>
         </section>
 
-        {/* Apartado exclusivo para domiciliarios */}
-        <section id="domiciliarios" className="scroll-mt-20 bg-brand-mist py-12 md:py-16">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <div className="overflow-hidden rounded-3xl border border-brand-lilac/60 bg-card shadow-soft">
-              <div className="grid gap-6 p-6 sm:p-8 md:grid-cols-[1fr_auto] md:items-center">
-                <div className="flex items-start gap-4">
-                  <span className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-brand-lavender text-primary">
-                    <Bike className="size-7" />
-                  </span>
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-brand-vivid">Acceso de trabajo</p>
-                    <h2 className="mt-1 font-display text-2xl font-bold text-foreground sm:text-3xl">Domiciliarios</h2>
-                    <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">Ingresa a tu portal para revisar pedidos disponibles, gestionar tus entregas y consultar tus ganancias. El acceso para recibir servicios se habilita después de la aprobación de la administración y la verificación de los requisitos correspondientes.</p>
-                  </div>
-                </div>
-                <div className="flex flex-col gap-2 sm:flex-row md:flex-col">
-                  <Button asChild variant="hero" size="lg">
-                    <a href="/domiciliario">Entrar a Domiciliarios <ArrowRight className="ml-2 size-4" /></a>
-                  </Button>
-                  <Button asChild variant="outline" size="lg">
-                    <a href="/auth">Iniciar sesión</a>
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
         {/* Servicios */}
         <section id="servicios" className="scroll-mt-20 py-20 md:py-28">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -352,7 +324,6 @@ function Inicio() {
                 Clientes, domiciliarios, negocios aliados y WhatsApp conectados a la misma operación.
               </p>
               <div className="mt-6 flex flex-wrap gap-3">
-                <a href="/domiciliario" className="inline-flex items-center justify-center rounded-xl bg-primary px-5 py-3 text-sm font-bold text-primary-foreground shadow-soft hover:opacity-90">Entrar al portal de domiciliarios</a>
                 <a href="/auth?modo=registro" className="inline-flex items-center justify-center rounded-xl border border-border bg-card px-5 py-3 text-sm font-bold text-foreground hover:border-brand-lilac">Crear una cuenta</a>
               </div>
               <p className="mt-3 text-xs text-muted-foreground">El acceso operativo se habilita únicamente después de la revisión y aprobación administrativa, y de verificar los requisitos legales y documentos aplicables.</p>
@@ -389,6 +360,30 @@ function Inicio() {
               mensaje="Hola Don Alex, quiero trabajar como domiciliario"
               cta="Quiero ser domiciliario"
             />
+          </div>
+        </section>
+
+        {/* Accesos internos al final de la página principal */}
+        <section id="accesos-internos" className="border-t border-border bg-brand-mist py-10">
+          <div className="mx-auto grid max-w-7xl gap-4 px-4 sm:px-6 md:grid-cols-2 lg:px-8">
+            <article className="rounded-2xl border border-brand-lilac/60 bg-card p-6">
+              <div className="flex items-center gap-3">
+                <Bike className="size-7 text-primary" />
+                <div><h2 className="font-display text-xl font-bold text-foreground">Módulo de domiciliarios</h2><p className="text-sm text-muted-foreground">Ingresa con tu cuenta para revisar el estado de tu postulación o trabajar si ya fuiste aprobado.</p></div>
+              </div>
+              <Button asChild variant="hero" className="mt-5 w-full">
+                <a href="/auth?redirect=%2Fdomiciliario">Ingresar al módulo de domiciliarios <ArrowRight className="ml-2 size-4" /></a>
+              </Button>
+            </article>
+            <article className="rounded-2xl border border-border bg-card p-6">
+              <div className="flex items-center gap-3">
+                <ShieldCheck className="size-7 text-muted-foreground" />
+                <div><h2 className="font-display text-xl font-bold text-foreground">Administración</h2><p className="text-sm text-muted-foreground">Acceso exclusivo para gestión interna de Don Alex.</p></div>
+              </div>
+              <Button asChild variant="outline" className="mt-5 w-full">
+                <a href="/administracion">Ingresar a administración <ArrowRight className="ml-2 size-4" /></a>
+              </Button>
+            </article>
           </div>
         </section>
       </main>
