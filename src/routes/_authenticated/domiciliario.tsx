@@ -77,6 +77,22 @@ function PortalDomiciliario() {
     onError: (e: Error) => toast.error(e.message || "No se pudo completar la acción"),
   });
 
+  const solicitarPostulacion = useMutation({
+    mutationFn: async () => {
+      const { data: auth } = await supabase.auth.getUser();
+      if (!auth.user) throw new Error("Inicia sesión para enviar tu postulación.");
+      const { error } = await (supabase as any).from("profiles")
+        .update({ tipo_cuenta_solicitada: "domiciliario" })
+        .eq("id", auth.user.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Tu postulación fue enviada a administración.");
+      void qc.invalidateQueries({ queryKey: ["portal-domiciliario"] });
+    },
+    onError: (e: Error) => toast.error(e.message || "No se pudo enviar la postulación."),
+  });
+
   const d = consulta.data;
   useEffect(() => {
     const channel = supabase.channel("portal-domi-live")
@@ -104,7 +120,7 @@ function PortalDomiciliario() {
         </div>
         {consulta.isLoading && <p className="mt-8 text-sm text-muted-foreground">Cargando tu información…</p>}
         {consulta.isError && <p role="alert" className="mt-6 rounded-xl bg-card p-4 text-sm text-destructive">No se pudo cargar el portal. Verifica que la base de datos esté actualizada y que tu cuenta esté registrada.</p>}
-        {d?.perfil?.estado !== "activo" && <section className="mt-8 rounded-2xl border border-brand-lilac bg-card p-6"><Clock3 className="size-8 text-primary" /><h2 className="mt-3 text-xl font-bold text-foreground">{d?.perfil?.estado === "pendiente" ? "Solicitud en revisión" : d?.perfil?.estado === "rechazado" ? "Solicitud rechazada" : d?.perfil?.estado === "retirado" || d?.perfil?.estado === "suspendido" ? "Cuenta deshabilitada" : "Solicitud de domiciliario"}</h2><p className="mt-2 text-sm text-muted-foreground">{d?.perfil?.estado === "pendiente" ? "Tu solicitud está pendiente de revisión por la administración." : puedeSolicitarReingreso ? "Puedes enviar una nueva solicitud desde esta misma cuenta. La administración revisará nuevamente tu información antes de habilitarte." : "Tu cuenta todavía no está aprobada. Cuando la administración revise tus datos y confirme los requisitos aplicables, podrás activar tu disponibilidad y recibir pedidos."}</p><p className="mt-3 text-xs text-muted-foreground">Estado actual: {d?.perfil?.estado ?? "No hay solicitud registrada"}</p>{d?.perfil?.estado === "pendiente" && <Button variant="outline" className="mt-4" disabled={actualizar.isPending} onClick={() => { if (window.confirm("¿Quieres retirar tu postulación? Podrás enviar una nueva solicitud más adelante.")) actualizar.mutate({ fn: "domiciliario_retirar_postulacion", args: {} }); }}>Retirar mi postulación</Button>}{puedeSolicitarReingreso && <Button className="mt-4" disabled={actualizar.isPending} onClick={() => actualizar.mutate({ fn: "domiciliario_solicitar_reingreso", args: {} })}>Enviar nueva postulación</Button>}</section>}
+        {d?.perfil?.estado !== "activo" && <section className="mt-8 rounded-2xl border border-brand-lilac bg-card p-6"><Clock3 className="size-8 text-primary" /><h2 className="mt-3 text-xl font-bold text-foreground">{d?.perfil?.estado === "pendiente" ? "Solicitud en revisión" : d?.perfil?.estado === "rechazado" ? "Solicitud rechazada" : d?.perfil?.estado === "retirado" || d?.perfil?.estado === "suspendido" ? "Cuenta deshabilitada" : "Solicitud de domiciliario"}</h2><p className="mt-2 text-sm text-muted-foreground">{d?.perfil?.estado === "pendiente" ? "Tu solicitud está pendiente de revisión por la administración." : puedeSolicitarReingreso ? "Puedes enviar una nueva solicitud desde esta misma cuenta. La administración revisará nuevamente tu información antes de habilitarte." : "Tu cuenta todavía no está aprobada. Cuando la administración revise tus datos y confirme los requisitos aplicables, podrás activar tu disponibilidad y recibir pedidos."}</p><p className="mt-3 text-xs text-muted-foreground">Estado actual: {d?.perfil?.estado ?? "No hay solicitud registrada"}</p>{!d?.perfil && <Button className="mt-4" disabled={solicitarPostulacion.isPending} onClick={() => solicitarPostulacion.mutate()}>{solicitarPostulacion.isPending ? "Enviando..." : "Enviar mi postulación"}</Button>}{d?.perfil?.estado === "pendiente" && <Button variant="outline" className="mt-4" disabled={actualizar.isPending} onClick={() => { if (window.confirm("¿Quieres retirar tu postulación? Podrás enviar una nueva solicitud más adelante.")) actualizar.mutate({ fn: "domiciliario_retirar_postulacion", args: {} }); }}>Retirar mi postulación</Button>}{puedeSolicitarReingreso && <Button className="mt-4" disabled={actualizar.isPending} onClick={() => actualizar.mutate({ fn: "domiciliario_solicitar_reingreso", args: {} })}>Enviar nueva postulación</Button>}</section>}
         {activo && <>
           <section className="mt-8 grid gap-4 sm:grid-cols-4">
             <Resumen icono={Wallet} titulo="Ganancias registradas" valor={formatearCOP(d?.total ?? 0)} />
