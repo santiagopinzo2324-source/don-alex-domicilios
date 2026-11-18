@@ -1,9 +1,10 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Activity, Bike, ClipboardList, Clock3, DollarSign, PackageCheck, RefreshCw, Store, Users, CheckCircle2, XCircle, MapPin, Plus, Save, Trash2 } from "lucide-react";
+import { Activity, Bike, ClipboardList, Clock3, DollarSign, PackageCheck, LogOut, RefreshCw, Store, Users, MapPin, Plus, Save, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
+import { consultaSolicitudesKey, SolicitudesDomiciliarios } from "@/components/admin/SolicitudesDomiciliarios";
 import { Encabezado } from "@/components/sitio/Encabezado";
 import { supabase } from "@/integrations/supabase/client";
 import { formatearCOP } from "@/lib/tarifas";
@@ -49,28 +50,6 @@ async function cargarResumen() {
   };
 }
 
-async function cargarSolicitudes() {
-  const { data: solicitudes, error } = await supabase
-    .from("domiciliarios")
-    .select("user_id, numero, estado, created_at")
-    .in("estado", ["pendiente", "activo", "rechazado", "retirado", "suspendido"] as never)
-    .order("created_at", { ascending: true });
-  if (error) throw error;
-  const ids = (solicitudes ?? []).map((s) => s.user_id);
-  if (ids.length === 0) return [];
-  const { data: perfiles, error: perfilError } = await supabase
-    .from("profiles")
-    .select("id, nombre_completo, telefono")
-    .in("id", ids);
-  if (perfilError) throw perfilError;
-  return (solicitudes ?? []).map((s) => ({
-    ...s,
-    // La base de datos tiene estados adicionales (rechazado, retirado) que aún no están en los tipos generados.
-    estado: s.estado as string,
-    perfil: perfiles?.find((p) => p.id === s.user_id) ?? null,
-  }));
-}
-
 type ReglaCobertura = { id: string; nombre: string; servicio_disponible: boolean; hora_limite: string | null; mensaje_cliente: string; activa: boolean; poligono: unknown };
 async function cargarReglasCobertura() {
   const { data, error } = await supabase.from("reglas_cobertura").select("*").order("nombre");
@@ -80,8 +59,14 @@ async function cargarReglasCobertura() {
 
 function Admin() {
   const qc = useQueryClient();
+  const navigate = useNavigate();
+  const cerrarSesion = async () => {
+    await qc.cancelQueries();
+    qc.clear();
+    await supabase.auth.signOut();
+    navigate({ to: "/administracion", replace: true });
+  };
   const resumen = useQuery({ queryKey: ["admin-resumen"], queryFn: cargarResumen, refetchInterval: 30000 });
-  const solicitudes = useQuery({ queryKey: ["admin-solicitudes-domiciliarios"], queryFn: cargarSolicitudes, refetchInterval: 30000 });
   const reglas = useQuery({ queryKey: ["admin-reglas-cobertura"], queryFn: cargarReglasCobertura });
   const [claveActual, setClaveActual] = useState("");
   const [claveNueva, setClaveNueva] = useState("");
@@ -92,19 +77,6 @@ function Admin() {
   const [nuevoLimite, setNuevoLimite] = useState("17:30");
   const [nuevoMensaje, setNuevoMensaje] = useState("Por el momento no contamos con cobertura de domicilios en este sector.");
   const [ediciones, setEdiciones] = useState<Record<string, Partial<ReglaCobertura>>>({});
-  const revisar = useMutation({
-    mutationFn: async ({ userId, estado }: { userId: string; estado: "activo" | "rechazado" | "retirado" }) => {
-      const { error } = await supabase.rpc("admin_cambiar_estado_domiciliario" as never, { _user_id: userId, _estado: estado } as never);
-      if (error) throw error;
-    },
-    onSuccess: (_data, variables) => {
-      toast.success(variables.estado === "activo" ? "Domiciliario habilitado." : variables.estado === "rechazado" ? "Solicitud rechazada." : "Domiciliario retirado.");
-      qc.invalidateQueries({ queryKey: ["admin-solicitudes-domiciliarios"] });
-      qc.invalidateQueries({ queryKey: ["admin-resumen"] });
-    },
-    onError: (error: Error) => toast.error(error.message || "No se pudo revisar la solicitud."),
-  });
-
   const guardarRegla = useMutation({
     mutationFn: async (regla: ReglaCobertura) => {
       const { error } = await supabase.from("reglas_cobertura").update((ediciones[regla.id] ?? {}) as never).eq("id", regla.id);
@@ -175,9 +147,14 @@ function Admin() {
             <h1 className="mt-1 font-display text-3xl font-bold text-foreground">Administración Don Alex</h1>
             <p className="mt-2 text-sm text-muted-foreground">Resumen conectado a los registros de la plataforma.</p>
           </div>
-          <button onClick={() => { resumen.refetch(); solicitudes.refetch(); }} className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground hover:border-brand-lilac">
+          <div className="flex flex-wrap gap-2">
+          <button onClick={() => { resumen.refetch(); qc.invalidateQueries({ queryKey: consultaSolicitudesKey }); }} className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground hover:border-brand-lilac">
             <RefreshCw className="size-4" /> Actualizar
           </button>
+          <button onClick={cerrarSesion} className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground hover:border-brand-lilac">
+            <LogOut className="size-4" /> Cerrar sesión
+          </button>
+          </div>
         </div>
 
         <section className="mt-6 rounded-2xl border border-border bg-card p-6 shadow-soft">
@@ -213,33 +190,7 @@ function Admin() {
           </article>
         </section>
 
-        <section className="mt-8 rounded-2xl border border-border bg-card p-6 shadow-soft">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div><h2 className="text-xl font-bold text-foreground">Solicitudes de domiciliarios</h2><p className="mt-1 text-sm text-muted-foreground">Administra solicitudes y estados. Los registros se conservan para mantener el historial.</p></div>
-            <span className="rounded-full bg-brand-lavender px-3 py-1 text-sm font-semibold text-primary">{solicitudes.data?.filter((s) => s.estado === "pendiente").length ?? 0} pendientes</span>
-          </div>
-          {solicitudes.isError && <p role="alert" className="mt-4 text-sm text-destructive">No se pudieron cargar las solicitudes. Comprueba que la migración del portal esté aplicada.</p>}
-          {solicitudes.isLoading && <p className="mt-4 text-sm text-muted-foreground">Cargando solicitudes…</p>}
-          {!solicitudes.isLoading && !solicitudes.isError && solicitudes.data?.length === 0 && <p className="mt-4 rounded-xl bg-brand-mist p-4 text-sm text-muted-foreground">Todavía no hay domiciliarios registrados.</p>}
-          <div className="mt-4 space-y-3">
-            {solicitudes.data?.map((s) => (
-              <article key={s.user_id} className="flex flex-col gap-4 rounded-xl border border-border p-4 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <p className="font-semibold text-foreground">{s.perfil?.nombre_completo || "Nombre no registrado"}</p>
-                  <p className="mt-1 text-sm font-bold text-primary">Código: DOM-{String(s.numero).padStart(3, "0")}</p>
-                  <p className="mt-1 text-sm text-muted-foreground">{s.perfil?.telefono || "Teléfono no registrado"}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">Registro: {new Date(s.created_at).toLocaleDateString("es-CO")} · Estado: <strong>{s.estado}</strong></p>
-                  <p className="mt-1 text-xs text-muted-foreground">ID de cuenta: {s.user_id}</p>
-                </div>
-                <div className="flex gap-2">
-                  {s.estado === "pendiente" && <><button disabled={revisar.isPending} onClick={() => revisar.mutate({ userId: s.user_id, estado: "rechazado" })} className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-semibold text-foreground disabled:opacity-50"><XCircle className="size-4" /> Rechazar</button><button disabled={revisar.isPending} onClick={() => revisar.mutate({ userId: s.user_id, estado: "activo" })} className="inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50"><CheckCircle2 className="size-4" /> Aprobar</button></>}
-                  {(s.estado === "rechazado" || s.estado === "retirado" || s.estado === "suspendido") && <button disabled={revisar.isPending} onClick={() => revisar.mutate({ userId: s.user_id, estado: "activo" })} className="inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50"><CheckCircle2 className="size-4" /> Reactivar</button>}
-                  {s.estado === "activo" && <button disabled={revisar.isPending} onClick={() => revisar.mutate({ userId: s.user_id, estado: "retirado" })} className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-semibold text-foreground disabled:opacity-50"><XCircle className="size-4" /> Retirar</button>}
-                </div>
-              </article>
-            ))}
-          </div>
-        </section>
+        <SolicitudesDomiciliarios />
         <section className="mt-8 rounded-2xl border border-border bg-card p-6 shadow-soft">
           <div className="flex items-center gap-3"><span className="flex size-11 items-center justify-center rounded-xl bg-brand-lavender text-primary"><MapPin className="size-5" /></span><div><h2 className="text-xl font-bold text-foreground">Cobertura y horarios por sector</h2><p className="mt-1 text-sm text-muted-foreground">Administra las reglas y avisos. Los polígonos geográficos aún deben delimitarse con datos verificados.</p></div></div>
           {reglas.isError && <p role="alert" className="mt-4 text-sm text-destructive">No se pudieron cargar las reglas.</p>}

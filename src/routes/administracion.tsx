@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import { LockKeyhole, ShieldCheck } from "lucide-react";
@@ -11,11 +11,29 @@ import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/administracion")({
   ssr: false,
+  head: () => ({
+    meta: [
+      { title: "Acceso administrativo · Don Alex" },
+      { name: "description", content: "Acceso exclusivo para el personal autorizado de Don Alex." },
+      { name: "robots", content: "noindex, nofollow" },
+      { property: "og:title", content: "Acceso administrativo · Don Alex" },
+      { property: "og:description", content: "Acceso exclusivo para el personal autorizado." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
+  // Si ya hay una sesión de administrador abierta, entra directo al panel.
+  beforeLoad: async () => {
+    const { data } = await supabase.auth.getUser();
+    if (!data.user) return;
+    const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", data.user.id);
+    if (roles?.some((r) => r.role === "admin")) throw redirect({ to: "/admin" });
+  },
   component: AccesoAdministracion,
 });
 
 function AccesoAdministracion() {
-  const [usuario, setUsuario] = useState("alex");
+  const [usuario, setUsuario] = useState("");
   const [contrasena, setContrasena] = useState("");
   const [cargando, setCargando] = useState(false);
 

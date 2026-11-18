@@ -13,4 +13,5 @@
 
 ## Pedido actual (usuario)
 - [x] Corregir errores existentes del panel de administración y del acceso/aprobación de domiciliarios, sin quitar ni rehacer el trabajo del usuario
-- [ ] Agregar mejoras nuevas al panel de administración y a la aprobación de domiciliarios (el usuario lo autorizó)
+- [x] Agregar mejoras nuevas al panel de administración y a la aprobación de domiciliarios (el usuario lo autorizó)
+- [x] Conectar "Acceso interno" del pie de página al acceso administrativo (usuario + contraseña) y de ahí al panel solo para administradores
