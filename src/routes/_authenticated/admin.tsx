@@ -67,9 +67,12 @@ function AvisosAdministracion() {
     try {
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
       if (!AudioCtx) return;
-      const ctx = audioContextRef.current ?? new AudioCtx();
-      audioContextRef.current = ctx;
-      if (ctx.state === "suspended") void ctx.resume();
+      let ctx = audioContextRef.current;
+      if (!ctx || ctx.state === "closed") {
+        ctx = new AudioCtx();
+        audioContextRef.current = ctx;
+      }
+      if (ctx.state === "suspended") void ctx.resume().catch(() => {});
       const ahora = ctx.currentTime;
       [740, 990].forEach((frecuencia, i) => {
         const osc = ctx.createOscillator(); const gain = ctx.createGain();
