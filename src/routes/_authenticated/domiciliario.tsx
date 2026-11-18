@@ -2,7 +2,7 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Bike, Clock3, MapPin, PackageCheck, Power, Wallet, Trophy, Star, Bell, LifeBuoy, History, BarChart3 } from "lucide-react";
 import { toast } from "sonner";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { Encabezado } from "@/components/sitio/Encabezado";
 import { Button } from "@/components/ui/button";
@@ -34,6 +34,27 @@ const ESTADOS: Record<string, string> = {
 function PortalDomiciliario() {
   const [codigos, setCodigos] = useState<Record<string, string>>({});
   const [sonidoActivado, setSonidoActivado] = useState(false);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const ofertasConocidasRef = useRef<Set<string> | null>(null);
+  const reproducirSonido = () => {
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = audioContextRef.current ?? new AudioCtx();
+      audioContextRef.current = ctx;
+      if (ctx.state === "suspended") void ctx.resume();
+      const ahora = ctx.currentTime;
+      [880, 1175].forEach((frecuencia, i) => {
+        const osc = ctx.createOscillator(); const gain = ctx.createGain();
+        osc.type = "sine"; osc.frequency.setValueAtTime(frecuencia, ahora + i * 0.16);
+        gain.gain.setValueAtTime(0.0001, ahora + i * 0.16);
+        gain.gain.exponentialRampToValueAtTime(0.18, ahora + i * 0.16 + 0.025);
+        gain.gain.exponentialRampToValueAtTime(0.0001, ahora + i * 0.16 + 0.22);
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.start(ahora + i * 0.16); osc.stop(ahora + i * 0.16 + 0.23);
+      });
+    } catch { /* El navegador puede bloquear audio si la pestaña no está activa. */ }
+  };
   const [categoriaAyuda, setCategoriaAyuda] = useState("Problema con un pedido");
   const [mensajeAyuda, setMensajeAyuda] = useState("");
   const [motivosProblema, setMotivosProblema] = useState<Record<string, string>>({});
@@ -105,27 +126,46 @@ function PortalDomiciliario() {
 
   const d = consulta.data;
   useEffect(() => {
-    const channel = supabase.channel("portal-domi-live")
-      .on("postgres_changes", { event: "*", schema: "public", table: "pedidos" }, () => qc.invalidateQueries({ queryKey: ["portal-domiciliario"] }))
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "notificaciones" }, () => {
-        void qc.invalidateQueries({ queryKey: ["portal-domiciliario"] });
-        if (sonidoActivado) {
-          try {
-            const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-            const ctx = new AudioCtx();
-            const osc = ctx.createOscillator(); const gain = ctx.createGain();
-            osc.type = "square"; osc.frequency.setValueAtTime(880, ctx.currentTime);
-            gain.gain.setValueAtTime(0.0001, ctx.currentTime); gain.gain.exponentialRampToValueAtTime(0.22, ctx.currentTime + 0.03);
-            gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.45);
-            osc.connect(gain); gain.connect(ctx.destination); osc.start(); osc.stop(ctx.currentTime + 0.46);
-            window.setTimeout(() => void ctx.close(), 700);
-          } catch { /* El navegador puede bloquear audio */ }
-          toast("¡Tienes una nueva notificación de pedido!");
-        }
-      })
-      .subscribe();
-    return () => { void supabase.removeChannel(channel); };
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    let vigente = true;
+    void supabase.auth.getUser().then(({ data }) => {
+      if (!vigente || !data.user) return;
+      const usuarioId = data.user.id;
+      channel = supabase.channel(`portal-domi-live-${usuarioId}`)
+        .on("postgres_changes", { event: "*", schema: "public", table: "pedidos" }, () => {
+          void qc.invalidateQueries({ queryKey: ["portal-domiciliario"] });
+        })
+        .on("postgres_changes", {
+          event: "INSERT", schema: "public", table: "pedido_ofertas_domiciliarios",
+          filter: `domiciliario_id=eq.${usuarioId}`,
+        }, () => {
+          void qc.invalidateQueries({ queryKey: ["portal-domiciliario"] });
+          if (sonidoActivado) { reproducirSonido(); toast("¡Tienes una nueva oferta de pedido!"); }
+        })
+        .on("postgres_changes", {
+          event: "INSERT", schema: "public", table: "notificaciones",
+          filter: `user_id=eq.${usuarioId}`,
+        }, (payload) => {
+          void qc.invalidateQueries({ queryKey: ["portal-domiciliario"] });
+          if (sonidoActivado && !(payload.new as { pedido_id?: string | null }).pedido_id) {
+            reproducirSonido(); toast("Tienes una nueva notificación.");
+          }
+        })
+        .subscribe();
+    });
+    return () => { vigente = false; if (channel) void supabase.removeChannel(channel); };
   }, [qc, sonidoActivado]);
+
+  // Respaldo por consulta periódica si el canal en tiempo real no entrega el evento.
+  useEffect(() => {
+    if (!d) return;
+    const ids = new Set<string>((d.disponibles ?? []).map((p: { id: string }) => p.id));
+    if (ofertasConocidasRef.current === null) { ofertasConocidasRef.current = ids; return; }
+    const nuevas = [...ids].some((id) => !ofertasConocidasRef.current?.has(id));
+    ofertasConocidasRef.current = ids;
+    if (nuevas && sonidoActivado) { reproducirSonido(); toast("¡Tienes una nueva oferta de pedido!"); }
+  }, [d?.disponibles, sonidoActivado]);
+
   const activo = d?.perfil?.estado === "activo";
   const puedeSolicitarReingreso = ["rechazado", "retirado", "suspendido"].includes(d?.perfil?.estado ?? "");
   const cambiarEstado = (id: string, estado: string) =>
@@ -159,7 +199,7 @@ function PortalDomiciliario() {
             <Resumen icono={Clock3} titulo="Actividad registrada" valor={String(d?.actividad.length ?? 0)+" eventos"} />
           </section>
           <section className="mt-8 rounded-2xl border border-border bg-card p-5">
-            <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="flex items-center gap-2 text-xl font-bold"><Bell className="size-5 text-primary"/> Notificaciones</h2><Button size="sm" variant={sonidoActivado ? "outline" : "hero"} onClick={() => { setSonidoActivado((v) => !v); if (!sonidoActivado) { try { const Ctx = window.AudioContext || (window as any).webkitAudioContext; const ctx = new Ctx(); const osc=ctx.createOscillator(); const gain=ctx.createGain(); gain.gain.value=0.05; osc.connect(gain); gain.connect(ctx.destination); osc.start(); osc.stop(ctx.currentTime+0.12); window.setTimeout(()=>void ctx.close(),250); } catch {} } }}>{sonidoActivado ? "Desactivar sonido" : "Activar sonido de pedidos"}</Button></div>
+            <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="flex items-center gap-2 text-xl font-bold"><Bell className="size-5 text-primary"/> Notificaciones</h2><Button size="sm" variant={sonidoActivado ? "outline" : "hero"} onClick={() => { if (!sonidoActivado) { reproducirSonido(); setSonidoActivado(true); } else { setSonidoActivado(false); } }}>{sonidoActivado ? "Desactivar sonido" : "Activar sonido de pedidos"}</Button></div>
             <div className="mt-3 space-y-2">{d?.avisos.map((n) => <article key={n.id} className="rounded-xl bg-muted/50 p-3"><div className="flex justify-between gap-2"><strong className="text-sm">{n.titulo}</strong><span className="text-xs text-muted-foreground">{new Date(n.created_at).toLocaleString("es-CO")}</span></div><p className="mt-1 text-sm text-muted-foreground">{n.cuerpo}</p></article>)}{!d?.avisos.length && <p className="text-sm text-muted-foreground">Todavía no tienes notificaciones.</p>}</div>
           </section>
           <section className="mt-8 rounded-2xl border border-border bg-card p-5">
