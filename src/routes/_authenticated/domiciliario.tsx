@@ -138,7 +138,9 @@ function PortalDomiciliario() {
         .on("postgres_changes", {
           event: "INSERT", schema: "public", table: "pedido_ofertas_domiciliarios",
           filter: `domiciliario_id=eq.${usuarioId}`,
-        }, () => {
+        }, (payload) => {
+          const oferta = payload.new as { pedido_id?: string };
+          if (oferta.pedido_id) ofertasConocidasRef.current?.add(oferta.pedido_id);
           void qc.invalidateQueries({ queryKey: ["portal-domiciliario"] });
           if (sonidoActivado) { reproducirSonido(); toast("¡Tienes una nueva oferta de pedido!"); }
         })
