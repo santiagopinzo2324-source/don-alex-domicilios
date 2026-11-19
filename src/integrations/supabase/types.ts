@@ -130,7 +130,6 @@ export type Database = {
       domiciliarios: {
         Row: {
           created_at: string
-          numero: number
           disponible: boolean
           documento_identidad: string | null
           estado: Database["public"]["Enums"]["estado_registro"]
@@ -143,7 +142,6 @@ export type Database = {
         }
         Insert: {
           created_at?: string
-          numero?: number
           disponible?: boolean
           documento_identidad?: string | null
           estado?: Database["public"]["Enums"]["estado_registro"]
@@ -156,7 +154,6 @@ export type Database = {
         }
         Update: {
           created_at?: string
-          numero?: number
           disponible?: boolean
           documento_identidad?: string | null
           estado?: Database["public"]["Enums"]["estado_registro"]
@@ -690,42 +687,6 @@ export type Database = {
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
-        }
-        Relationships: []
-      }
-      reglas_cobertura: {
-        Row: {
-          activa: boolean
-          created_at: string
-          hora_limite: string | null
-          id: string
-          mensaje_cliente: string
-          nombre: string
-          poligono: Json
-          servicio_disponible: boolean
-          updated_at: string
-        }
-        Insert: {
-          activa?: boolean
-          created_at?: string
-          hora_limite?: string | null
-          id?: string
-          mensaje_cliente: string
-          nombre: string
-          poligono?: Json
-          servicio_disponible?: boolean
-          updated_at?: string
-        }
-        Update: {
-          activa?: boolean
-          created_at?: string
-          hora_limite?: string | null
-          id?: string
-          mensaje_cliente?: string
-          nombre?: string
-          poligono?: Json
-          servicio_disponible?: boolean
-          updated_at?: string
         }
         Relationships: []
       }
