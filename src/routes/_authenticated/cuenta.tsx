@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { db } from "@/integrations/db/esquema-externo";
 import { supabase } from "@/integrations/supabase/client";
 import { esquemaCelular, esquemaDireccion } from "@/lib/validacion";
 
@@ -25,7 +26,7 @@ const cuentaQuery = (userId: string) => queryOptions({
       supabase.from("direcciones").select("*").eq("cliente_id", u.user.id).order("es_principal", { ascending: false }).order("created_at"),
       supabase.from("pedidos").select("id, numero, tipo_servicio, estado, cliente_nombre, cliente_telefono, establecimiento_nombre, entrega_direccion, entrega_barrio, descripcion, observaciones, subtotal_productos, valor_domicilio, total, metodo_pago, created_at, updated_at").eq("cliente_id", u.user.id).order("created_at", { ascending: false }).limit(30),
       supabase.from("notificaciones").select("id, titulo, cuerpo, leida, created_at, pedido_id").eq("user_id", u.user.id).order("created_at", { ascending: false }).limit(20),
-      supabase.from("codigos_recogida").select("pedido_id, codigo").eq("cliente_id", u.user.id),
+      db.from("codigos_recogida").select("pedido_id, codigo").eq("cliente_id", u.user.id),
     ]);
     if (perfil.error) throw perfil.error;
     if (roles.error) throw roles.error;

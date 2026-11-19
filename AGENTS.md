@@ -36,3 +36,4 @@ use the editor.
 - Public company data (name, WhatsApp number, hours) is read from `src/lib/empresa.ts` until it moves to admin-editable settings.
 - Brand colors are semantic tokens (`brand-*`, `on-brand*`, `whatsapp`) in `src/styles.css`; components use those, never raw hex.
 - UI copy is Spanish (Colombia); identifiers in domain code are Spanish too.
+- Tables/columns that exist only in the live database (not in generated `types.ts`) are typed in `src/integrations/db/esquema-externo.ts`; query them through its `db` client instead of editing `types.ts`, because generated types get rebuilt and drop manual edits.

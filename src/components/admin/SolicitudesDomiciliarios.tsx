@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { db } from "@/integrations/db/esquema-externo";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 
@@ -36,7 +37,7 @@ const FILTROS = [
 ] as const;
 
 async function cargarSolicitudes() {
-  const { data: solicitudes, error } = await supabase
+  const { data: solicitudes, error } = await db
     .from("domiciliarios")
     .select("user_id, numero, estado, disponible, vehiculo, placa, documento_identidad, licencia_vigente, soat_vigente, created_at")
     .in("estado", ["pendiente", "activo", "rechazado", "retirado", "suspendido"] as never)

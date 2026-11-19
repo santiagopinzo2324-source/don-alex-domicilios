@@ -15,3 +15,5 @@
 - [x] Corregir errores existentes del panel de administración y del acceso/aprobación de domiciliarios, sin quitar ni rehacer el trabajo del usuario
 - [x] Agregar mejoras nuevas al panel de administración y a la aprobación de domiciliarios (el usuario lo autorizó)
 - [x] Conectar "Acceso interno" del pie de página al acceso administrativo (usuario + contraseña) y de ahí al panel solo para administradores
+- [x] Corregir errores de compilación causados por la regeneración automática de tipos (reglas de cobertura, códigos de recogida, código del domiciliario)
+- [ ] Visitantes sin cuenta no ven categorías, medios de pago, negocios ni zonas — bloqueado: el dueño debe ejecutar la corrección en su base de datos

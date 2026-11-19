@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { consultaSolicitudesKey, SolicitudesDomiciliarios } from "@/components/admin/SolicitudesDomiciliarios";
 import { Encabezado } from "@/components/sitio/Encabezado";
 import { Button } from "@/components/ui/button";
+import { db } from "@/integrations/db/esquema-externo";
 import { supabase } from "@/integrations/supabase/client";
 import { formatearCOP } from "@/lib/tarifas";
 
@@ -53,9 +54,9 @@ async function cargarResumen() {
 
 type ReglaCobertura = { id: string; nombre: string; servicio_disponible: boolean; hora_limite: string | null; mensaje_cliente: string; activa: boolean; poligono: unknown };
 async function cargarReglasCobertura() {
-  const { data, error } = await supabase.from("reglas_cobertura").select("*").order("nombre");
+  const { data, error } = await db.from("reglas_cobertura").select("*").order("nombre");
   if (error) throw error;
-  return data as ReglaCobertura[];
+  return data satisfies ReglaCobertura[];
 }
 
 
@@ -211,11 +212,11 @@ function OperacionesDespacho() {
       if (domis.error) throw domis.error;
       if (pedidos.error) throw pedidos.error;
       if (ofertas.error) throw ofertas.error;
-      const ids = [...new Set([
+      const ids: string[] = [...new Set<string>([
         ...(domis.data ?? []).map((d: { user_id: string }) => d.user_id),
         ...(ofertas.data ?? []).map((o: { domiciliario_id: string }) => o.domiciliario_id),
       ])];
-      const pedidoIds = [...new Set((ofertas.data ?? []).map((o: { pedido_id: string }) => o.pedido_id))];
+      const pedidoIds: string[] = [...new Set<string>((ofertas.data ?? []).map((o: { pedido_id: string }) => o.pedido_id))];
       const [perfiles, pedidosOferta] = await Promise.all([
         ids.length ? supabase.from("profiles").select("id, nombre_completo").in("id", ids) : Promise.resolve({ data: [], error: null }),
         pedidoIds.length ? supabase.from("pedidos").select("id, numero, cliente_nombre, entrega_direccion").in("id", pedidoIds) : Promise.resolve({ data: [], error: null }),
@@ -273,7 +274,7 @@ function Admin() {
   const [ediciones, setEdiciones] = useState<Record<string, Partial<ReglaCobertura>>>({});
   const guardarRegla = useMutation({
     mutationFn: async (regla: ReglaCobertura) => {
-      const { error } = await supabase.from("reglas_cobertura").update((ediciones[regla.id] ?? {}) as never).eq("id", regla.id);
+      const { error } = await db.from("reglas_cobertura").update((ediciones[regla.id] ?? {}) as never).eq("id", regla.id);
       if (error) throw error;
     },
     onSuccess: () => { toast.success("Regla guardada."); qc.invalidateQueries({ queryKey: ["admin-reglas-cobertura"] }); },
@@ -282,7 +283,7 @@ function Admin() {
   const crearRegla = useMutation({
     mutationFn: async () => {
       if (!nuevoNombre.trim()) throw new Error("Escribe el nombre del sector.");
-      const { error } = await supabase.from("reglas_cobertura").insert({
+      const { error } = await db.from("reglas_cobertura").insert({
         nombre: nuevoNombre.trim(), servicio_disponible: nuevoTipo !== "bloqueada",
         hora_limite: nuevoTipo === "horario" ? nuevoLimite : null,
         mensaje_cliente: nuevoMensaje.trim(), activa: true,
@@ -293,7 +294,7 @@ function Admin() {
     onError: (error: Error) => toast.error(error.message),
   });
   const eliminarRegla = useMutation({
-    mutationFn: async (id: string) => { const { error } = await supabase.from("reglas_cobertura").delete().eq("id", id); if (error) throw error; },
+    mutationFn: async (id: string) => { const { error } = await db.from("reglas_cobertura").delete().eq("id", id); if (error) throw error; },
     onSuccess: () => { toast.success("Regla eliminada."); qc.invalidateQueries({ queryKey: ["admin-reglas-cobertura"] }); },
     onError: (error: Error) => toast.error(error.message),
   });
