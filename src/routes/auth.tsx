@@ -166,18 +166,19 @@ function FormRegistro({ onModo, accesoDomiciliario }: { onModo: (m: Modo) => voi
 
   async function enviar(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (cargando) return;
     const bruto = Object.fromEntries(new FormData(e.currentTarget));
     setErrores({});
-    setCargando(true);
     const datos = { ...bruto, tipo_cuenta: tipoRegistro };
     const r = tipoRegistro === "cliente"
       ? esquemaRegistroCliente.safeParse(datos)
       : esquemaRegistro.safeParse(datos);
     if (!r.success) {
       setErrores(Object.fromEntries(r.error.issues.map((i) => [i.path[0], i.message])));
-      setCargando(false);
       return;
     }
+    // Nunca crear usuario ni enviar postulación si faltan datos obligatorios.
+    setCargando(true);
     const { email, password, ...meta } = r.data;
     const { data, error } = await supabase.auth.signUp({
       email, password,
@@ -222,10 +223,10 @@ function FormRegistro({ onModo, accesoDomiciliario }: { onModo: (m: Modo) => voi
       </p>}
       {tipoRegistro === "cliente" && <><div className="mt-5"><BotonGoogle /></div><Separador /></>}
       <form onSubmit={enviar} className={cn("space-y-4", tipoRegistro !== "cliente" && "mt-5")} noValidate>
-        <Campo id="nombre_completo" label="Nombre completo" autoComplete="name" error={errores["nombre_completo"]} />
-        {tipoRegistro !== "cliente" && <Campo id="telefono" label="Número de WhatsApp" type="tel" inputMode="tel" placeholder="311 819 9006" autoComplete="tel" error={errores["telefono"]} />}
-        <Campo id="email" label="Correo electrónico" type="email" autoComplete="email" error={errores["email"]} />
-        <Campo id="password" label="Contraseña" type="password" autoComplete="new-password" error={errores["password"]} />
+        <Campo id="nombre_completo" label="Nombre completo" autoComplete="name" required minLength={3} maxLength={100} error={errores["nombre_completo"]} />
+        {tipoRegistro !== "cliente" && <Campo id="telefono" label="Número de WhatsApp" type="tel" inputMode="tel" placeholder="311 819 9006" autoComplete="tel" required error={errores["telefono"]} />}
+        <Campo id="email" label="Correo electrónico" type="email" autoComplete="email" required maxLength={255} error={errores["email"]} />
+        <Campo id="password" label="Contraseña" type="password" autoComplete="new-password" required minLength={8} maxLength={72} error={errores["password"]} />
         <Button type="submit" variant="hero" size="lg" className="w-full" disabled={cargando}>{cargando ? "Creando cuenta…" : "Crear cuenta"}</Button>
       </form>
       <p className="mt-6 text-center text-sm text-muted-foreground">¿Ya tienes cuenta?{" "}
